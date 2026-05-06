@@ -1,13 +1,13 @@
 {
-  "name": "F Estates",
-  "short_name": "F Estates",
-  "start_url": "/suivi-chantier-f-estates/",
+  "name": "Suivi Chantier WP",
+  "short_name": "WP",
+  "start_url": "/suivi-chantier-WP/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#0b1d4d",
   "icons": [
     {
-      "src": "logo.png",
+      "src": "logoWP.png",
       "sizes": "512x512",
       "type": "image/png"
     }
