@@ -533,7 +533,28 @@ async function doLogin(){
   const err=document.getElementById('loginError');
   if(!email||!pw){err.textContent='Veuillez remplir tous les champs.';return;}
   btn.disabled=true;btn.textContent='Connexion…';err.textContent='';
-  try{ await window._fbSignIn(email,pw); }
+ try{
+  await window._fbSignIn(email,pw);
+
+  const user = auth.currentUser;
+
+  const snap = await get(ref(db,'users/'+user.uid));
+
+  if(!snap.exists()){
+    alert("Kein Zugriff");
+    await window._fbSignOut();
+    return;
+  }
+
+  const data = snap.val();
+
+  if(data.companyId !== window.allowedCompany){
+    alert("Kein Zugriff für diese Firma");
+    await window._fbSignOut();
+    return;
+  }
+
+}
   catch(e){
     const m={'auth/invalid-credential':'E-mail ou mot de passe incorrect.','auth/user-not-found':'Aucun compte avec cet e-mail.','auth/wrong-password':'Mot de passe incorrect.','auth/too-many-requests':'Trop de tentatives. Réessayez plus tard.'};
     err.textContent=m[e.code]||'Erreur : '+e.message;
