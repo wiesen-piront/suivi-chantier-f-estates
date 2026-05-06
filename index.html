@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChantierPro v6 — Suivi de Chantier</title>
+<link href="./Suivi chantier site_files/css2" rel="stylesheet">
+<style>
+:root {
+  --ink:#1a1a1a;--ink2:#4a4a4a;--ink3:#8a8a8a;
+  --paper:#f8f6f1;--paper2:#eeebe3;--paper3:#e3dfd5;
+  --accent:#c85a2a;--accent2:#e87a4a;
+  --green:#2a6b3a;--green-bg:#e8f4ec;
+  --blue:#1e4a8a;--blue-bg:#e8eef8;
+  --orange:#b85a00;--orange-bg:#fdf0e0;
+  --red:#8a1a1a;--red-bg:#faeaea;
+  --grey-bg:#f0ede6;
+  --shadow:0 2px 8px rgba(0,0,0,0.08);--shadow-md:0 4px 20px rgba(0,0,0,0.12);
+  --radius:8px;--radius-lg:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;}
+
+/* LOGIN */
+#loginScreen{position:fixed;inset:0;background:var(--paper);z-index:1000;display:flex;align-items:center;justify-content:center;}
+.login-card{background:#fff;border-radius:18px;padding:2.5rem;width:400px;max-width:calc(100vw - 2rem);box-shadow:0 24px 60px rgba(0,0,0,0.14);border:1px solid var(--paper3);}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:2rem;}
+.login-logo-dot{width:10px;height:10px;background:var(--accent2);border-radius:50%;}
+.login-logo-text{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;}
+.login-title{font-size:22px;font-weight:600;margin-bottom:6px;}
+.login-sub{font-size:13px;color:var(--ink3);margin-bottom:1.75rem;}
+.login-label{font-size:12px;font-weight:600;color:var(--ink2);display:block;margin-bottom:6px;}
+.login-input{width:100%;padding:10px 13px;border:1.5px solid var(--paper3);border-radius:9px;font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:1rem;transition:border .15s;background:#fff;}
+.login-input:focus{outline:none;border-color:var(--accent2);}
+.login-error{font-size:12px;color:var(--red);min-height:18px;margin-bottom:.75rem;}
+.login-btn{width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:9px;font-size:14px;font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;transition:background .15s;}
+.login-btn:hover{background:var(--accent2);}
+.login-btn:disabled{opacity:.6;cursor:default;}
+
+/* HEADER */
+.header{background:var(--ink);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;}
+.logo{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:#fff;letter-spacing:.08em;display:flex;align-items:center;gap:10px;}
+.logo-dot{width:8px;height:8px;background:var(--accent2);border-radius:50%;}
+.header-right{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.header-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#ccc;font-size:12px;font-family:'DM Sans',sans-serif;padding:6px 12px;border-radius:6px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.header-btn:hover{background:rgba(255,255,255,.2);color:#fff;}
+.header-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.user-badge{font-size:11px;color:#888;font-family:'DM Mono',monospace;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* LAYOUT */
+.layout{display:flex;min-height:calc(100vh - 56px);}
+.sidebar{width:270px;flex-shrink:0;background:var(--paper2);border-right:1px solid var(--paper3);padding:1.25rem 1rem;display:flex;flex-direction:column;gap:.3rem;overflow-y:auto;}
+.sidebar-title{font-size:10px;font-weight:600;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;padding:0 .5rem;margin-bottom:.2rem;margin-top:.75rem;}
+
+/* NAV ITEMS (dashboard/rapport) */
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius);cursor:pointer;transition:all .15s;border:1.5px solid transparent;}
+.nav-item:hover{background:var(--paper3);}
+.nav-item.active{background:var(--ink);color:#fff;}
+.nav-icon{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.ni-dash{background:#e8e8e8;}.ni-report{background:#ede8f8;}
+.nav-info{flex:1;min-width:0;}
+.nav-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nav-meta{font-size:11px;color:var(--ink3);margin-top:1px;}
+.nav-item.active .nav-meta{color:#aaa;}
+
+/* CHANTIER GROUPS */
+.chantier-group{margin-bottom:2px;}
+.chantier-group-header{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius);cursor:pointer;transition:all .15s;user-select:none;}
+.chantier-group-header:hover{background:var(--paper3);}
+.cg-chevron{font-size:9px;color:var(--ink3);transition:transform .2s;flex-shrink:0;}
+.chantier-group.expanded .cg-chevron{transform:rotate(90deg);}
+.cg-name{font-size:13px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cg-actions{display:flex;gap:2px;flex-shrink:0;opacity:0;transition:opacity .1s;}
+.chantier-group-header:hover .cg-actions{opacity:1;}
+.icon-btn{background:none;border:none;cursor:pointer;color:#888;font-size:13px;padding:2px 5px;border-radius:4px;transition:all .1s;line-height:1;}
+.icon-btn.rename:hover{color:#4a90e2!important;background:rgba(74,144,226,.15);}
+.icon-btn.del:hover{color:#ff5555!important;background:rgba(255,85,85,.15);}
+
+/* PHASE ITEMS */
+.chantier-phases{padding-left:10px;display:none;}
+.chantier-group.expanded .chantier-phases{display:block;}
+.phase-nav-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--radius);cursor:pointer;transition:all .15s;margin-bottom:2px;border:1.5px solid transparent;}
+.phase-nav-item:hover{background:var(--paper3);}
+.phase-nav-item.active{background:var(--ink);color:#fff;}
+.phase-nav-icon{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
+.pi-go{background:#fdebd0;}.pi-apt{background:#d5e8f8;}.pi-maison{background:#dff0e4;}
+.phase-nav-item.active .phase-nav-icon{opacity:.85;}
+.phase-nav-info{flex:1;min-width:0;}
+.phase-nav-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.phase-nav-meta{font-size:10px;color:var(--ink3);margin-top:1px;}
+.phase-nav-item.active .phase-nav-meta{color:#aaa;}
+.phase-mini-prog{width:28px;height:3px;background:rgba(0,0,0,.1);border-radius:2px;overflow:hidden;flex-shrink:0;}
+.phase-mini-fill{height:100%;background:var(--accent2);border-radius:2px;}
+.phase-nav-item.active .phase-mini-prog{background:rgba(255,255,255,.2);}
+.phase-del-btn{background:none;border:none;cursor:pointer;color:#888;font-size:12px;padding:2px 4px;border-radius:4px;transition:all .1s;flex-shrink:0;opacity:0;line-height:1;}
+.phase-nav-item:hover .phase-del-btn,.phase-nav-item.active .phase-del-btn{opacity:1;}
+.phase-del-btn:hover{color:#ff5555!important;background:rgba(255,85,85,.15);}
+.add-phase-btn{font-size:11px;color:var(--ink3);padding:5px 10px;cursor:pointer;display:flex;align-items:center;gap:5px;border-radius:5px;transition:all .15s;margin-top:2px;}
+.add-phase-btn:hover{color:var(--accent);background:var(--orange-bg);}
+
+.add-btn{margin-top:.5rem;display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--radius);border:1.5px dashed var(--paper3);background:none;cursor:pointer;color:var(--ink3);font-size:12px;font-family:'DM Sans',sans-serif;transition:all .15s;width:100%;}
+.add-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--orange-bg);}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto;}
+
+/* DASHBOARD */
+.dashboard{padding:2rem;max-width:1100px;}
+.page-title{font-size:24px;font-weight:600;margin-bottom:4px;}
+.page-sub{font-size:13px;color:var(--ink3);margin-bottom:1.75rem;}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:.85rem;margin-bottom:1.75rem;}
+.kpi-card{background:#fff;border-radius:var(--radius-lg);padding:1.1rem 1.25rem;border:1px solid var(--paper3);box-shadow:var(--shadow);}
+.kpi-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:6px;}
+.kpi-value{font-size:28px;font-weight:600;font-family:'DM Mono',monospace;}
+.kpi-value.green{color:var(--green);}.kpi-value.orange{color:var(--orange);}.kpi-value.red{color:var(--red);}.kpi-value.blue{color:var(--blue);}
+.projects-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;}
+.proj-card{background:#fff;border-radius:var(--radius-lg);padding:1.4rem;border:1px solid var(--paper3);box-shadow:var(--shadow);cursor:pointer;transition:all .2s;}
+.proj-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);border-color:var(--accent2);}
+.proj-card-header{display:flex;align-items:center;gap:12px;margin-bottom:1rem;}
+.proj-card-icon{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.proj-card-name{font-size:14px;font-weight:600;}
+.proj-card-sub{font-size:11px;color:var(--ink3);margin-top:2px;}
+.prog-bar{height:6px;background:var(--paper3);border-radius:3px;margin:.6rem 0 .4rem;overflow:hidden;}
+.prog-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s;}
+.prog-label{font-size:12px;color:var(--ink3);display:flex;justify-content:space-between;}
+.proj-card-statuses{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.status-pill{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
+.sp-done{background:var(--green-bg);color:var(--green);}
+.sp-can{background:var(--blue-bg);color:var(--blue);}
+.sp-prog{background:var(--orange-bg);color:var(--orange);}
+.sp-blocked{background:var(--red-bg);color:var(--red);}
+
+/* DASHBOARD FILTERS */
+.dash-filter-bar{display:flex;gap:1.25rem;margin-bottom:1.5rem;flex-wrap:wrap;background:#fff;border-radius:var(--radius-lg);padding:1rem 1.25rem;border:1px solid var(--paper3);box-shadow:var(--shadow);align-items:center;}
+.dash-filter-sep{width:1px;height:28px;background:var(--paper3);flex-shrink:0;}
+.dash-filter-group{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}
+.dash-filter-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);white-space:nowrap;}
+.dash-chips{display:flex;gap:4px;flex-wrap:wrap;}
+.dash-chip{padding:5px 14px;border-radius:20px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;border:1.5px solid var(--paper3);background:#fff;color:var(--ink2);transition:all .15s;font-weight:500;}
+.dash-chip:hover{border-color:var(--accent2);color:var(--accent);}
+.dash-chip.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+.dash-results-label{font-size:12px;color:var(--ink3);margin-bottom:1rem;padding:0 2px;}
+.dash-results-label strong{color:var(--ink2);}
+.no-results{text-align:center;padding:3rem 1rem;color:var(--ink3);font-size:13px;}
+
+/* CHECKLIST */
+.checklist-view{padding:2rem;max-width:860px;}
+.checklist-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;}
+.checklist-title-group{flex:1;}
+.checklist-type{font-size:11px;color:var(--ink3);font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;}
+.checklist-title{font-size:22px;font-weight:600;}
+.checklist-header-btns{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.back-btn{background:none;border:1px solid var(--paper3);color:var(--ink2);font-size:12px;font-family:'DM Sans',sans-serif;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.back-btn:hover{background:var(--paper2);}
+
+/* FILTERS */
+.filter-bar{display:flex;gap:4px;margin-bottom:1rem;flex-wrap:wrap;}
+.ftab{padding:5px 14px;border-radius:20px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;border:1.5px solid var(--paper3);background:#fff;color:var(--ink2);transition:all .15s;font-weight:500;}
+.ftab:hover{border-color:var(--accent2);color:var(--accent);}
+.ftab.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+.ftab-count{display:inline-block;background:rgba(0,0,0,.12);border-radius:10px;font-size:10px;padding:1px 6px;margin-left:4px;font-weight:600;}
+.ftab.active .ftab-count{background:rgba(255,255,255,.2);}
+.filter-empty{text-align:center;padding:3rem 1rem;color:var(--ink3);font-size:13px;}
+
+/* PROGRESS */
+.progress-overview{background:#fff;border-radius:var(--radius-lg);padding:1.25rem 1.5rem;border:1px solid var(--paper3);box-shadow:var(--shadow);margin-bottom:1.5rem;}
+.progress-overview-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.progress-overview-label{font-size:13px;font-weight:500;}
+.progress-overview-value{font-size:13px;font-weight:600;font-family:'DM Mono',monospace;color:var(--accent);}
+.progress-bar-main{height:8px;background:var(--paper3);border-radius:4px;overflow:hidden;}
+.progress-bar-main-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:4px;transition:width .5s cubic-bezier(.4,0,.2,1);}
+
+/* PROJECT NOTES */
+.project-notes-card{background:#fff;border-radius:var(--radius-lg);border:1px solid var(--paper3);box-shadow:var(--shadow);margin-bottom:1rem;overflow:hidden;}
+.project-notes-header{display:flex;align-items:center;gap:8px;padding:.9rem 1.25rem;cursor:pointer;transition:background .15s;}
+.project-notes-header:hover{background:var(--grey-bg);}
+.project-notes-title{font-size:12px;font-weight:600;color:var(--ink2);flex:1;}
+.project-notes-chevron{color:var(--ink3);font-size:12px;transition:transform .2s;}
+.project-notes-card.open .project-notes-chevron{transform:rotate(180deg);}
+.project-notes-body{display:none;padding:0 1.25rem 1.25rem;}
+.project-notes-card.open .project-notes-body{display:block;}
+.project-notes-textarea{width:100%;padding:10px 12px;border:1.5px solid var(--paper3);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--ink2);background:var(--paper);resize:vertical;min-height:80px;transition:border .15s;}
+.project-notes-textarea:focus{outline:none;border-color:var(--accent2);}
+
+/* STEPS */
+.step-block{background:#fff;border-radius:var(--radius-lg);border:1px solid var(--paper3);box-shadow:var(--shadow);margin-bottom:1rem;overflow:hidden;}
+.step-header{display:flex;align-items:center;gap:12px;padding:1rem 1.25rem;cursor:pointer;transition:background .15s;}
+.step-header:hover{background:var(--grey-bg);}
+.step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;font-family:'DM Mono',monospace;flex-shrink:0;background:var(--paper2);color:var(--ink2);}
+.step-num.done{background:var(--green);color:#fff;}
+.step-num.can{background:var(--blue);color:#fff;}
+.step-num.inprogress{background:var(--orange);color:#fff;}
+.step-info{flex:1;min-width:0;}
+.step-name{font-size:14px;font-weight:500;}
+.step-remark{font-size:11px;color:var(--ink3);font-style:italic;margin-top:2px;}
+.step-badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;}
+.badge-done{background:var(--green-bg);color:var(--green);}
+.badge-can{background:var(--blue-bg);color:var(--blue);}
+.badge-blocked{background:var(--red-bg);color:var(--red);}
+.badge-progress{background:var(--orange-bg);color:var(--orange);}
+.step-chevron{color:var(--ink3);font-size:12px;flex-shrink:0;transition:transform .2s;}
+.step-block.open .step-chevron{transform:rotate(180deg);}
+.step-move-btns{display:flex;flex-direction:column;gap:1px;opacity:0;transition:opacity .15s;flex-shrink:0;}
+.step-block:hover .step-move-btns{opacity:1;}
+.step-move-btn{background:none;border:none;cursor:pointer;color:var(--ink3);font-size:10px;padding:2px 5px;border-radius:3px;line-height:1;font-family:'DM Mono',monospace;}
+.step-move-btn:hover:not(:disabled){background:var(--paper2);color:var(--ink);}
+.step-move-btn:disabled{opacity:.25;cursor:default;}
+.prereqs{border-top:1px solid var(--paper3);padding:.75rem 1.25rem 1rem;display:none;background:#fdfcf9;}
+.step-block.open .prereqs{display:block;}
+.prereq-item{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid var(--paper3);}
+.prereq-item:last-child{border-bottom:none;}
+.prereq-check{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--paper3);background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-top:1px;transition:all .15s;font-size:11px;}
+.prereq-check.checked{background:var(--green);border-color:var(--green);color:#fff;}
+.prereq-text{font-size:13px;color:var(--ink2);line-height:1.4;flex:1;cursor:pointer;}
+.prereq-text.checked{color:var(--ink3);text-decoration:line-through;}
+.note-input{width:100%;margin-top:10px;padding:8px 10px;border:1px solid var(--paper3);border-radius:6px;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--ink2);background:#fff;resize:none;transition:border .15s;}
+.note-input:focus{outline:none;border-color:var(--accent2);}
+.note-label{font-size:11px;color:var(--ink3);margin-top:10px;margin-bottom:4px;display:block;}
+.step-date{font-size:11px;font-family:'DM Mono',monospace;margin-top:8px;padding:4px 0;}
+.step-date.done-date{color:var(--green);}
+.step-date.started-date{color:var(--orange);}
+.step-actions{display:flex;gap:8px;justify-content:space-between;margin-top:10px;flex-wrap:wrap;align-items:center;}
+.step-actions-right{display:flex;gap:8px;flex-wrap:wrap;}
+.step-btn{padding:6px 16px;border-radius:6px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;font-weight:500;transition:all .15s;}
+.step-btn-green{background:var(--green);color:#fff;}.step-btn-green:hover{opacity:.85;}
+.step-btn-blue{background:var(--blue);color:#fff;}.step-btn-blue:hover{opacity:.85;}
+.step-btn-grey{background:var(--paper3);color:var(--ink2);}.step-btn-grey:hover{background:var(--paper2);}
+.step-btn-edit{background:none;border:1px solid var(--paper3)!important;color:var(--ink3);font-size:11px;padding:5px 12px;}.step-btn-edit:hover{border-color:var(--accent2)!important;color:var(--accent);}
+.add-step-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;border:1.5px dashed var(--paper3);background:#fff;border-radius:var(--radius-lg);color:var(--ink3);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s;margin-top:.5rem;}
+.add-step-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--orange-bg);}
+
+/* BUDGET */
+.deblocage-badge{display:inline-flex;align-items:center;gap:4px;background:#fffbf0;border:1px solid #f0d070;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:600;color:#8a6500;margin-left:6px;vertical-align:middle;}
+.deblocage-total-bar{background:#fff;border-radius:var(--radius-lg);border:1px solid var(--paper3);box-shadow:var(--shadow);padding:1.1rem 1.5rem;margin-bottom:1.25rem;}
+.dtb-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;}
+.dtb-title{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);}
+.dtb-val{font-size:20px;font-weight:700;font-family:'DM Mono',monospace;color:var(--green);}
+.dtb-max{font-size:12px;color:var(--ink3);}
+.dtb-bar-track{height:12px;background:var(--paper3);border-radius:6px;overflow:hidden;display:flex;}
+.dtb-segment{height:100%;transition:width .5s;}
+.dtb-legend{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;}
+.dtb-leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink2);}
+.dtb-leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+.phase-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.05em;margin-left:5px;}
+.phase-go{background:#fdebd0;color:#8a4500;}
+.phase-couvert{background:#e8eef8;color:#1e4a8a;}
+.phase-para{background:#e8f4ec;color:#2a6b3a;}
+
+/* SYNC */
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#666;display:inline-block;margin-right:4px;}
+.sync-dot.synced{background:#2a6b3a;}
+.sync-dot.syncing{background:#e87a4a;animation:pulse 1s infinite;}
+.sync-dot.offline{background:#8a1a1a;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sync-label{font-size:11px;color:#888;font-family:'DM Mono',monospace;}
+
+/* MODALS */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;border-radius:var(--radius-lg);padding:2rem;width:460px;max-width:calc(100vw - 2rem);box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto;}
+.modal.wide{width:580px;}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:1.25rem;}
+.modal label{font-size:12px;font-weight:600;color:var(--ink2);display:block;margin-bottom:6px;}
+.modal input,.modal select,.modal textarea{width:100%;padding:9px 12px;border:1.5px solid var(--paper3);border-radius:8px;font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:1rem;transition:border .15s;background:#fff;color:var(--ink);}
+.modal textarea{resize:vertical;min-height:80px;}
+.modal input:focus,.modal select:focus,.modal textarea:focus{outline:none;border-color:var(--accent2);}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;}
+.modal-footer{display:flex;justify-content:space-between;align-items:center;margin-top:.5rem;}
+.modal-btns button{padding:8px 20px;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s;border:none;}
+.btn-cancel{background:var(--paper2);border:1px solid var(--paper3)!important;color:var(--ink2);}
+.btn-confirm{background:var(--accent);color:#fff;}.btn-confirm:hover{background:var(--accent2);}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid #f5c0c0!important;padding:8px 16px;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;}
+.btn-danger:hover{background:#f5c0c0;}
+
+/* LOGO DROP ZONE */
+.logo-drop-zone{border:2px dashed var(--paper3);border-radius:var(--radius-lg);padding:1.5rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--paper);min-height:110px;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;}
+.logo-drop-zone:hover,.logo-drop-zone.dragover{border-color:var(--accent2);background:var(--orange-bg);}
+.logo-drop-zone img{max-height:72px;max-width:100%;object-fit:contain;border-radius:6px;}
+.drop-placeholder{color:var(--ink3);font-size:13px;line-height:1.6;}
+.drop-icon{font-size:30px;margin-bottom:6px;}
+.profile-logo-preview{display:flex;align-items:center;gap:1rem;padding:.75rem;background:var(--paper2);border-radius:var(--radius);margin-bottom:1rem;}
+.profile-logo-preview img{height:40px;max-width:120px;object-fit:contain;border-radius:4px;}
+.profile-logo-preview-name{font-size:13px;color:var(--ink2);flex:1;}
+.profile-logo-clear{background:none;border:none;cursor:pointer;color:var(--ink3);font-size:18px;padding:2px 6px;border-radius:4px;transition:all .1s;}
+.profile-logo-clear:hover{color:var(--red);background:var(--red-bg);}
+
+/* TOAST */
+.toast{position:fixed;bottom:2rem;right:2rem;background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:300;transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+.empty-state{text-align:center;padding:4rem 2rem;color:var(--ink3);}
+.empty-state .es-icon{font-size:48px;margin-bottom:1rem;}
+.empty-state h3{font-size:16px;font-weight:500;color:var(--ink2);margin-bottom:.5rem;}
+
+@media(max-width:700px){.sidebar{width:230px;}.kpi-row{grid-template-columns:repeat(3,1fr);}.dash-filter-bar{flex-direction:column;gap:.75rem;}}
+@media(max-width:500px){.sidebar{display:none;}.kpi-row{grid-template-columns:repeat(2,1fr);}}
+@media print{
+  #loginScreen{display:none!important;}
+  .header,.sidebar,.checklist-header-btns,.filter-bar,.step-actions,.add-btn,.add-step-btn,.back-btn,.project-notes-header{display:none!important;}
+  body{background:white;}.layout{display:block;}.main{overflow:visible;}
+  .step-block,.kpi-card,.proj-card{box-shadow:none;break-inside:avoid;border:1px solid #ddd;}
+  .prereqs{display:block!important;}.project-notes-body{display:block!important;}
+}
+</style>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  const firebaseConfig={apiKey:"AIzaSyAunYOcn1sVJkS3UlBuOJsD1NS1ZPzk34o",authDomain:"chantier-98c12.firebaseapp.com",databaseURL:"https://chantier-98c12-default-rtdb.europe-west1.firebasedatabase.app",projectId:"chantier-98c12",storageBucket:"chantier-98c12.firebasestorage.app",messagingSenderId:"108133717293",appId:"1:108133717293:web:ea39231135d380ec766fa4"};
+  const app=initializeApp(firebaseConfig);const db=getDatabase(app);const auth=getAuth(app);
+  window._fbSet=(path,data)=>set(ref(db,path),data);
+  window._fbListen=(path,cb)=>onValue(ref(db,path),snap=>cb(snap.val()));
+  window._fbOff=(path)=>off(ref(db,path));
+  window._fbSignIn=(e,p)=>signInWithEmailAndPassword(auth,e,p);
+  window._fbSignOut=()=>signOut(auth);
+  window._fbOnAuth=(cb)=>onAuthStateChanged(auth,cb);
+  document.dispatchEvent(new Event('firebaseReady'));
+</script>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo"><div class="login-logo-dot"></div><span class="login-logo-text">ChantierPro</span></div>
+    <div class="login-title">Connexion</div>
+    <div class="login-sub">Connectez-vous pour accéder à vos chantiers</div>
+    <label class="login-label">E-mail</label>
+    <input class="login-input" type="email" id="loginEmail" placeholder="votre@email.com" autocomplete="email">
+    <label class="login-label">Mot de passe</label>
+    <input class="login-input" type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    <div class="login-error" id="loginError"></div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Se connecter</button>
+  </div>
+</div>
+
+<header class="header">
+  <div class="logo" id="logoArea"><div class="logo-dot"></div>ChantierPro <span style="opacity:.4;font-size:11px;margin-left:4px">v6</span></div>
+  <div class="header-right">
+    <span><span class="sync-dot synced" id="syncDot"></span><span class="sync-label" id="syncLabel">● Synchronisé</span></span>
+    <span class="user-badge" id="userBadge"></span>
+    <button class="header-btn" onclick="openProfileModal()" title="Profil entreprise">🏢 Profil</button>
+    <button class="header-btn" onclick="window.print()">🖨 Imprimer</button>
+    <button class="header-btn" onclick="exportData()">⬇ Export</button>
+    <button class="header-btn" onclick="document.getElementById('importFile').click()">⬆ Import</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    <button class="header-btn primary" onclick="saveNow()">💾 Sauvegarder</button>
+    <button class="header-btn" onclick="doLogout()" style="border-color:rgba(255,100,100,.4);color:#ffaaaa">↩ Déconnexion</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-title">Navigation</div>
+    <div class="nav-item" id="navDash" onclick="showDashboard()">
+      <div class="nav-icon ni-dash">📊</div>
+      <div class="nav-info"><div class="nav-name">Tableau de bord</div><div class="nav-meta" id="dashMeta">Chargement…</div></div>
+    </div>
+    <div class="sidebar-title" style="margin-top:1rem">Mes chantiers</div>
+    <div id="chantierList"></div>
+    <button class="add-btn" onclick="openAddChantierModal()">＋ Nouveau chantier</button>
+  </aside>
+  <main class="main" id="mainContent">
+    <div class="empty-state"><div class="es-icon">⏳</div><h3>Chargement…</h3></div>
+  </main>
+</div>
+
+<!-- Modal: Nouveau chantier -->
+<div class="modal-overlay" id="addChantierModal">
+  <div class="modal">
+    <h3>Nouveau chantier</h3>
+    <label>Nom du chantier</label>
+    <input type="text" id="newChantierName" placeholder="ex. Belleg, Maison Müller…">
+    <label>Première phase</label>
+    <select id="newChantierType">
+      <option value="go">🏗 Gros œuvre (17 étapes)</option>
+      <option value="apt">🏠 Appartement — second œuvre (20 étapes)</option>
+      <option value="maison">🏡 Maison — construction complète (26 étapes)</option>
+    </select>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('addChantierModal')">Annuler</button>
+      <button class="btn-confirm" onclick="addChantier()">Créer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ajouter phase -->
+<div class="modal-overlay" id="addPhaseModal">
+  <div class="modal">
+    <h3>Ajouter une phase</h3>
+    <input type="hidden" id="addPhaseChantierId">
+    <label>Type de phase</label>
+    <select id="addPhaseType">
+      <option value="go">🏗 Gros œuvre (17 étapes)</option>
+      <option value="apt">🏠 Appartement — second œuvre (20 étapes)</option>
+      <option value="maison">🏡 Maison — construction complète (26 étapes)</option>
+    </select>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('addPhaseModal')">Annuler</button>
+      <button class="btn-confirm" onclick="confirmAddPhase()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Renommer chantier -->
+<div class="modal-overlay" id="renameModal">
+  <div class="modal">
+    <h3>✏ Renommer le chantier</h3>
+    <input type="hidden" id="renameChantierId">
+    <label>Nouveau nom</label>
+    <input type="text" id="renameChantierName" placeholder="Nom du chantier">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('renameModal')">Annuler</button>
+      <button class="btn-confirm" onclick="confirmRename()">Renommer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Modifier étape -->
+<div class="modal-overlay" id="editStepModal">
+  <div class="modal wide">
+    <h3>✏ Modifier l'étape</h3>
+    <input type="hidden" id="esChId"><input type="hidden" id="esPId"><input type="hidden" id="esIdx">
+    <label>Nom de l'étape</label>
+    <input type="text" id="esName" placeholder="Nom de l'étape">
+    <label>Remarque (optionnel)</label>
+    <input type="text" id="esRemark" placeholder="ex. Séchage 2–4 semaines">
+    <label>Phase</label>
+    <select id="esPhase">
+      <option value="go">GO</option>
+      <option value="couvert">Clos couvert</option>
+      <option value="parachèvement">Parachèvement</option>
+    </select>
+    <label>Budget débloqué (%)</label>
+    <input type="number" id="esDeblocage" min="0" max="100" step="0.01" placeholder="0">
+    <label>Prérequis (un par ligne)</label>
+    <textarea id="esPrereqs" rows="6" placeholder="Permis de construire affiché&#10;Plans validés&#10;…"></textarea>
+    <div class="modal-footer">
+      <button class="btn-danger" onclick="deleteStepConfirm()">🗑 Supprimer l'étape</button>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeModal('editStepModal')">Annuler</button>
+        <button class="btn-confirm" onclick="saveStepEdit()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Profil entreprise -->
+<div class="modal-overlay" id="profileModal">
+  <div class="modal wide">
+    <h3>🏢 Profil entreprise</h3>
+    <label>Nom de l'entreprise</label>
+    <input type="text" id="profileCompanyName" placeholder="ex. Wiesen Piront SA">
+    <label>Logo (glisser-déposer ou cliquer)</label>
+    <div class="logo-drop-zone" id="logoDropZone"
+      onclick="document.getElementById('logoFileInput').click()"
+      ondragover="event.preventDefault();this.classList.add('dragover')"
+      ondragleave="this.classList.remove('dragover')"
+      ondrop="handleLogoDrop(event)">
+      <div id="logoPreviewArea">
+        <div class="drop-placeholder"><div class="drop-icon">🖼</div><div>Glisser le logo ici ou cliquer pour sélectionner</div><div style="font-size:11px;margin-top:4px;color:var(--ink3)">PNG · JPG · SVG · max 2 Mo</div></div>
+      </div>
+    </div>
+    <input type="file" id="logoFileInput" accept="image/*" style="display:none" onchange="handleLogoFile(event)">
+    <div class="modal-footer">
+      <button class="btn-danger" onclick="clearLogo()">🗑 Supprimer logo</button>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeModal('profileModal')">Annuler</button>
+        <button class="btn-confirm" onclick="saveProfile()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════
+//  TEMPLATES
+// ════════════════════════════════════════
+const TEMPLATES = {
+  go:{label:'Gros œuvre',icon:'🏗',iconClass:'pi-go',steps:[
+    {name:'Installation chantier',remark:'Base vie, clôtures, signalisation',deblocage:0,phase:'go',prereqs:['Permis de construire affiché et valide','Plan de masse validé par l\'architecte','Réseaux existants localisés (eau, gaz, élec)','Bornage effectué','Grue — emplacement défini']},
+    {name:'Terrassement – déblais',remark:'Terrassement général / blindage',deblocage:8.21,phase:'go',prereqs:['Installation chantier terminée','Cotes de fond de fouille définies sur plan','Entreprise de terrassement confirmée','Photos terrain avant travaux prises']},
+    {name:'Béton de propreté',remark:'Fond de fouille propre et compacté',deblocage:0,phase:'go',prereqs:['Terrassement terminé','Fond de fouille propre et compacté','Bureau de contrôle — feu vert donné','Demande courant définitif introduite']},
+    {name:'Réseaux enterrés EU / EP',remark:'Canalisations eaux usées + eaux pluviales',deblocage:0,phase:'go',prereqs:['Fond de fouille atteint et validé','Plans réseaux EU/EP signés par l\'architecte','Photos canalisations et prise de terre prises']},
+    {name:'Mise à la terre + Fondations',remark:'Armatures + coulage béton fondations',deblocage:6.15,phase:'go',prereqs:['Béton de propreté durci (min. 24h)','Plans de ferraillage validés','Bureau de contrôle présent pour réception armatures']},
+    {name:'Radier / dalle basse',remark:'Dalle béton armé sur toute l\'emprise',deblocage:0,phase:'go',prereqs:['Fondations terminées et réceptionnées','Étanchéité sous radier posée','Bureau de contrôle a validé les armatures']},
+    {name:'Élévation sous-sol',remark:'Murs et voiles béton SS',deblocage:6.15,phase:'go',prereqs:['Radier décoffré — résistance béton ok','Plans coffrage SS validés']},
+    {name:'Étanchéité + remblaiement',remark:'Protection murs enterrés + terres compactées',deblocage:0,phase:'go',prereqs:['Murs sous-sol décoffrés','Derbigum murs enterrés posé','Étanchéité réceptionnée par bureau de contrôle','Photos étanchéité prises','Drainage périphérique posé']},
+    {name:'Dalle sur sous-sol',remark:'Plancher haut SS — coffrage + coulage',deblocage:3.08,phase:'go',prereqs:['Murs SS terminés et validés','Remblaiement terminé','Plans de dalle validés']},
+    {name:'Élévation RDC',remark:'Murs et voiles béton RDC',deblocage:2.05,phase:'go',prereqs:['Dalle sur SS terminée et décoffrée','Résistance béton dalle vérifiée (min. 7 jours)']},
+    {name:'Dalle sur RDC',remark:'Plancher haut RDC — coffrage + coulage',deblocage:2.05,phase:'go',prereqs:['Murs RDC terminés et validés','Bureau de contrôle a validé les armatures']},
+    {name:'Élévation étages courants (R+1→R+3 + dalles)',remark:'Verticaux R+1/R+2/R+3 + dalles 2e/3e étage',deblocage:10.26,phase:'go',prereqs:['Dalle niveau inférieur terminée et décoffrée','Résistance béton vérifiée avant charge suivante']},
+    {name:'Charpente / structure toiture',remark:'Ossature toiture — bois ou béton',deblocage:0,phase:'go',prereqs:['Dernier niveau béton terminé','Plans charpente validés par bureau d\'études']},
+    {name:'Couverture + étanchéité toiture',remark:'Étanchéité toiture — bâtiment clos hors eau',deblocage:3.15,phase:'couvert',prereqs:['Charpente terminée et réceptionnée','Bandes terrasse posées','Remontées derbigum réalisées (seuils, purénit)']},
+    {name:'Menuiseries extérieures',remark:'Pose menuiseries extérieures — clos couvert',deblocage:7.34,phase:'couvert',prereqs:['Toiture terminée','Pose des purénites','Pose des tôles du serrurier','Remontée d\'étancheité','Cotes des baies relevées et confirmées sur site']},
+    {name:'Étanchéité balcons + façade + garde-corps',remark:'Façade + ferroneries ext. — clos couvert',deblocage:11.01,phase:'couvert',prereqs:['Menuiseries extérieures posées','Garde-corps terrasse et toiture posés','Façade terminée']},
+    {name:'Réception gros œuvre',remark:'⚠️ PV signé — avant tout second œuvre',deblocage:2.05,phase:'go',prereqs:['Façade et étanchéité balcons terminées','Bureau de contrôle — visite réception effectuée','PV de réception GO signé','Réserves notées par écrit','Nettoyage du chantier après GO']}
+  ]},
+  apt:{label:'Appartement',icon:'🏠',iconClass:'pi-apt',steps:[
+    {name:'Maçonnerie',remark:'Point de départ',deblocage:0,phase:'parachèvement',prereqs:['Plan de callage signé par le client','Toutes les cloisons montées','Plan de réservations techniques spéciales transmis','Chantier propre et sécurisé','Validation fiche technique par le bureau de contrôle']},
+    {name:'Incorporations sanitaires',remark:'Évacuations + alimentations avant plâtre',deblocage:8.61,phase:'parachèvement',prereqs:['Plans sanitaires signés par le client','Plan de cuisine validé','Choix robinet extérieur et alimentation machine à laver','Plan de callage signé : collecteur chauffage sol, ECS, WMC, ventilation']},
+    {name:'Incorporations électriques',remark:'Gaines + boîtes avant plâtre',deblocage:8.11,phase:'parachèvement',prereqs:['Plans électriques (CCTP) signés par le client','Plan de cuisine validé par le client','Positionnement sortie câble store confirmé','Plan de callage signé avec tableau divisionnaire']},
+    {name:'Plâtre / enduit projeté',remark:'Séchage : 2 à 4 semaines',deblocage:2.03,phase:'parachèvement',prereqs:['Incorporations sanitaires terminées','Incorporations électriques terminées','Plinthes encastrées vérifiées','Cadres portes encastrés vérifiés','Fenêtres posées','Tableaux encastrés posés d\'aplomb','Plan du plafonnage transmis']},
+    {name:'Préchappe',remark:'Poser sur toute la surface avant chape',deblocage:0,phase:'parachèvement',prereqs:['Plâtre terminé et sec (min. 2 semaines)','Techniques terminées','Sol propre, dépoussiéré et plan','Plan des préchappes transmis']},
+    {name:'Chauffage au sol – pose',remark:'Tubes PER sur natte isolante',deblocage:0,phase:'parachèvement',prereqs:['Natte acoustique posée sur toute la surface','Plan de zonage chauffage validé','Collecteurs commandés et livrés']},
+    {name:'Chape',remark:'Vérifier manomètre le matin du coulage',deblocage:2.03,phase:'parachèvement',prereqs:['Réseaux sous pression','Joints de dilatation posés','Température chantier > 5°C','Temps de séchage préchappe respecté','Plan des chapes transmis']},
+    {name:'Revêtement de sol et faïence murale',remark:'Ne jamais poser à l\'œil — mesure obligatoire',deblocage:4.56,phase:'parachèvement',prereqs:['Offre client signée','Carrelage / parquet livré sur chantier','Protocole de chauffe terminé']},
+    {name:'Peinture plafond salle de bain',remark:'Avant pose des portes palières',deblocage:0,phase:'parachèvement',prereqs:['Revêtement de sol terminé et protégé','Offre client signée']},
+    {name:'Menuiseries palières (portes palières)',remark:'Poser avant lissage murs',deblocage:0,phase:'parachèvement',prereqs:['Peinture plafond 1ère couche terminée','Cotes des baies vérifiées sur place']},
+    {name:'Pose sanitaire',remark:'Zones humides : SdB, WC, cuisine',deblocage:0,phase:'parachèvement',prereqs:['Faïence / carrelage mural livré','Porte palière posée et sécurisée','Plafond salle de bain peint']},
+    {name:'1ère couche peinture murs',remark:'',deblocage:0,phase:'parachèvement',prereqs:['Support sec','Température suffisante']},
+    {name:'Menuiserie intérieure – huisseries / bâtis',remark:'Cadres avant 2ème couche peinture',deblocage:3.55,phase:'parachèvement',prereqs:['1ère couche peinture murs terminée','Cotes des passages de portes vérifiées']},
+    {name:'Plinthes',remark:'Après sol et huisseries posés',deblocage:0,phase:'parachèvement',prereqs:['Portes posées']},
+    {name:'2ème couche peinture + Acryl',remark:'',deblocage:2.03,phase:'parachèvement',prereqs:['Plinthes posées','1ère couche peinture sèche']},
+    {name:'Silicone',remark:'Dernière opération avant appareillage',deblocage:0,phase:'parachèvement',prereqs:['2ème couche peinture terminée et sèche','Couleurs des joints validées']},
+    {name:'Appareillage sanitaire – finitions',remark:'WC, lavabos, douches, robinetterie',deblocage:0,phase:'parachèvement',prereqs:['Client a validé les positions']},
+    {name:'Appareillage électrique – finitions',remark:'Prises, interrupteurs, luminaires, tableau',deblocage:3.04,phase:'parachèvement',prereqs:['Appareillage sanitaire terminé','Équipements électriques commandés et livrés','Demande de raccordement envoyée']},
+    {name:'Nettoyage',remark:'',deblocage:4.56,phase:'parachèvement',prereqs:['Appareillage électrique terminé','Corps de métier ont quitté le chantier','Entreprise de nettoyage confirmée','Benne pour déchets prévue']},
+    {name:'Remise des clés',remark:'⚠️ PV signé obligatoire',deblocage:0,phase:'parachèvement',prereqs:['Nettoyage fait','Préréception effectuée']}
+  ]},
+  maison:{label:'Maison',icon:'🏡',iconClass:'pi-maison',steps:[
+    {name:'Installation chantier',remark:'Base vie, clôtures, signalisation',deblocage:0,phase:'go',prereqs:['Permis de construire affiché et valide','Plan de masse validé par architecte','Bornage effectué','Réseaux existants localisés (eau, gaz, élec)']},
+    {name:'Terrassement',remark:'Fouilles + nivellement terrain',deblocage:5,phase:'go',prereqs:['Installation chantier terminée','Cotes de fond de fouille définies sur plan','Entreprise de terrassement confirmée','Photos terrain avant travaux prises']},
+    {name:'Réseaux enterrés + béton de propreté',remark:'EU/EP + prise de terre + béton propreté',deblocage:0,phase:'go',prereqs:['Terrassement terminé','Plans réseaux EU/EP validés','Photos canalisations et prise de terre prises']},
+    {name:'Fondations',remark:'Armatures + coulage béton fondations',deblocage:8,phase:'go',prereqs:['Béton de propreté durci (min. 24h)','Plans de ferraillage validés','Bureau de contrôle présent pour réception armatures']},
+    {name:'Murs sous-sol / cave',remark:'Voiles béton ou blocs',deblocage:5,phase:'go',prereqs:['Fondations réceptionnées','Plans coffrage validés']},
+    {name:'Étanchéité + remblaiement',remark:'Protection murs enterrés',deblocage:0,phase:'go',prereqs:['Murs SS décoffrés','Derbigum murs enterrés posé','Photos étanchéité prises','Drainage périphérique posé']},
+    {name:'Dalle sous-sol',remark:'Plancher haut SS',deblocage:3,phase:'go',prereqs:['Remblaiement terminé','Plans de dalle validés','Bureau de contrôle OK']},
+    {name:'Murs RDC',remark:'Maçonnerie / béton RDC',deblocage:5,phase:'go',prereqs:['Dalle SS terminée et décoffrée','Plans confirmés sur site']},
+    {name:'Dalle RDC + linteaux',remark:'Plancher haut RDC',deblocage:3,phase:'go',prereqs:['Murs RDC terminés et validés','Bureau de contrôle OK pour armatures']},
+    {name:'Murs étage',remark:'Maçonnerie étage',deblocage:4,phase:'go',prereqs:['Dalle RDC terminée et décoffrée','Résistance béton vérifiée']},
+    {name:'Charpente',remark:'Ossature toiture bois ou béton',deblocage:0,phase:'go',prereqs:['Murs étage terminés et validés','Plans charpente validés par bureau d\'études']},
+    {name:'Couverture + étanchéité toiture',remark:'Bâtiment hors eau',deblocage:5,phase:'couvert',prereqs:['Charpente réceptionnée','Matériaux couverture livrés sur chantier']},
+    {name:'Menuiseries extérieures',remark:'Fenêtres, portes d\'entrée, baies',deblocage:7,phase:'couvert',prereqs:['Toiture terminée et étanche','Cotes des baies confirmées sur site','Commande menuiseries livrée']},
+    {name:'Façade + isolation extérieure',remark:'Enduit, bardage ou isolation façade',deblocage:6,phase:'couvert',prereqs:['Menuiseries extérieures posées','Isolation façade validée','Échafaudage en place']},
+    {name:'Réception gros œuvre',remark:'⚠️ PV signé avant second œuvre',deblocage:2,phase:'go',prereqs:['Façade terminée','Bureau de contrôle — visite réception effectuée','PV de réception GO signé','Réserves notées par écrit']},
+    {name:'Cloisons + maçonnerie intérieure',remark:'Cloisonnement définitif intérieur',deblocage:0,phase:'parachèvement',prereqs:['Réception GO effectuée','Plans de cloisons validés par client','Chantier hors eau']},
+    {name:'Incorporations sanitaires',remark:'Évacuations + alimentations avant plâtre',deblocage:6,phase:'parachèvement',prereqs:['Plans sanitaires signés par le client','Plan cuisine validé','Plan de callage transmis']},
+    {name:'Incorporations électriques',remark:'Gaines + boîtes avant plâtre',deblocage:5,phase:'parachèvement',prereqs:['Plans électriques (CCTP) signés par le client','Positionnement tableaux validé','Plan de callage signé']},
+    {name:'Plâtre / enduit intérieur',remark:'Séchage : 2 à 4 semaines',deblocage:3,phase:'parachèvement',prereqs:['Incorporations terminées','Fenêtres posées','Chantier sec et hors gel']},
+    {name:'Chape + chauffage sol',remark:'Vérifier manomètre le jour du coulage',deblocage:3,phase:'parachèvement',prereqs:['Plâtre sec (min. 2 semaines)','Tubes PER posés sous pression','Joints de dilatation posés','Température > 5°C']},
+    {name:'Revêtements sol + faïence',remark:'Mesure obligatoire avant pose',deblocage:5,phase:'parachèvement',prereqs:['Chape sèche et dure','Matériaux livrés sur chantier','Offre client signée','Protocole de chauffe terminé']},
+    {name:'Peintures intérieures',remark:'1ère et 2ème couche',deblocage:3,phase:'parachèvement',prereqs:['Revêtements de sol terminés et protégés','Offre client signée']},
+    {name:'Menuiseries intérieures',remark:'Portes, huisseries, escalier',deblocage:4,phase:'parachèvement',prereqs:['1ère couche peinture terminée','Cotes des passages vérifiées sur site']},
+    {name:'Appareillage sanitaire',remark:'WC, lavabos, douches, baignoire, cuisine',deblocage:3,phase:'parachèvement',prereqs:['Faïence posée et jointée','Appareils livrés sur chantier','Porte posée et sécurisée']},
+    {name:'Appareillage électrique',remark:'Prises, interrupteurs, luminaires, tableau',deblocage:4,phase:'parachèvement',prereqs:['Appareillage sanitaire terminé','Matériel électrique livré','Demande de raccordement envoyée']},
+    {name:'Nettoyage + réception finale',remark:'⚠️ PV signé obligatoire',deblocage:2,phase:'parachèvement',prereqs:['Tous corps de métier ont quitté le chantier','Préréception effectuée','Entreprise de nettoyage confirmée','Benne déchets prévue']}
+  ]}
+};
+
+// ════════════════════════════════════════
+//  AUTH
+// ════════════════════════════════════════
+let _uid = null;
+function getFbPath(){ return 'chantierPro/users/'+_uid+'/data'; }
+
+async function doLogin(){
+  const email=document.getElementById('loginEmail').value.trim();
+  const pw=document.getElementById('loginPassword').value;
+  const btn=document.getElementById('loginBtn');
+  const err=document.getElementById('loginError');
+  if(!email||!pw){err.textContent='Veuillez remplir tous les champs.';return;}
+  btn.disabled=true;btn.textContent='Connexion…';err.textContent='';
+  try{ await window._fbSignIn(email,pw); }
+  catch(e){
+    const m={'auth/invalid-credential':'E-mail ou mot de passe incorrect.','auth/user-not-found':'Aucun compte avec cet e-mail.','auth/wrong-password':'Mot de passe incorrect.','auth/too-many-requests':'Trop de tentatives. Réessayez plus tard.'};
+    err.textContent=m[e.code]||'Erreur : '+e.message;
+    btn.disabled=false;btn.textContent='Se connecter';
+  }
+}
+async function doLogout(){ await window._fbSignOut(); }
+function showLoginScreen(){ document.getElementById('loginScreen').style.display='flex'; document.getElementById('loginBtn').disabled=false; document.getElementById('loginBtn').textContent='Se connecter'; document.getElementById('loginError').textContent=''; document.getElementById('loginPassword').value=''; setTimeout(()=>document.getElementById('loginEmail').focus(),100); }
+function hideLoginScreen(user){ document.getElementById('loginScreen').style.display='none'; document.getElementById('userBadge').textContent=user.email; }
+
+// ════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════
+let state={ chantiers:[], profile:{ logo:null, companyName:'' }, currentView:'dashboard', currentChantierId:null, currentPhaseId:null };
+let _isSyncing=false, _filter='all', _noteDebounce=null, _projectNotesOpen=false;
+let _dashFilter={ type:'all', status:'all' };
+
+function setSyncStatus(s){ const d=document.getElementById('syncDot'),l=document.getElementById('syncLabel'); if(!d)return; d.className='sync-dot '+s; l.textContent=s==='synced'?'● Synchronisé':s==='syncing'?'⟳ Sauvegarde…':'✗ Hors ligne'; }
+function saveNow(){ pushToFirebase(); showToast('💾 Sauvegardé'); }
+function pushToFirebase(){ if(!window._fbSet||!_uid){setSyncStatus('offline');return;} setSyncStatus('syncing'); window._fbSet(getFbPath(),{chantiers:state.chantiers,profile:state.profile,updatedAt:Date.now()}).then(()=>setSyncStatus('synced')).catch(()=>setSyncStatus('offline')); }
+function autoSave(){ if(!_isSyncing) pushToFirebase(); }
+
+function startFirebaseListener(){
+  window._fbListen(getFbPath(),(data)=>{
+    if(!data){setSyncStatus('synced');render();return;}
+    _isSyncing=true;
+    state.chantiers=migrateData(data);
+    state.profile=data.profile||{logo:null,companyName:''};
+    setSyncStatus('synced');render();
+    setTimeout(()=>{ _isSyncing=false; },100);
+  });
+}
+
+function migrateData(data){
+  // Old format: { projects: [...] }
+  if(data.projects && !data.chantiers){
+    return data.projects.map(p=>({
+      id:p.id, name:p.name, expanded:true,
+      phases:[{
+        id:p.id,
+        type:p.type,
+        notes:p.notes||'',
+        steps:p.steps.map((s,i)=>{
+          const ts=TEMPLATES[p.type]?.steps[i]||{};
+          return { name:ts.name||'Étape '+(i+1), remark:ts.remark||'', deblocage:ts.deblocage||0, phase:ts.phase||'', prereqs:ts.prereqs?[...ts.prereqs]:[], checked:s.checked||[], note:s.note||'', open:s.open||false, done:s.done||false, inprogress:s.inprogress||false, doneAt:s.doneAt||null, startedAt:s.startedAt||null };
+        })
+      }]
+    }));
+  }
+  // New format
+  if(data.chantiers){
+    return data.chantiers.map(c=>({
+      ...c,
+      phases:(c.phases||[]).map(ph=>({
+        ...ph,
+        notes:ph.notes||'',
+        steps:(ph.steps||[]).map(s=>({ name:s.name||'', remark:s.remark||'', deblocage:s.deblocage||0, phase:s.phase||'', prereqs:s.prereqs||[], checked:s.checked||[], note:s.note||'', open:s.open||false, done:s.done||false, inprogress:s.inprogress||false, doneAt:s.doneAt||null, startedAt:s.startedAt||null }))
+      }))
+    }));
+  }
+  return [];
+}
+
+function exportData(){ const b=new Blob([JSON.stringify({chantiers:state.chantiers},null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`ChantierPro_${new Date().toISOString().slice(0,10)}.json`; a.click(); showToast('⬇ Exporté'); }
+function importData(e){ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>{ try{ const d=JSON.parse(ev.target.result); state.chantiers=migrateData(d); pushToFirebase(); render(); showToast('⬆ Importé'); }catch{showToast('❌ Fichier invalide');} }; r.readAsText(f); e.target.value=''; }
+
+// ════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════
+function getChantier(cid){ return state.chantiers.find(c=>c.id===cid); }
+function getPhase(cid,pid){ return getChantier(cid)?.phases?.find(p=>p.id===pid); }
+function getProgress(ph){ const done=ph.steps.filter(s=>s.done).length; return {done,total:ph.steps.length,pct:ph.steps.length?Math.round(done/ph.steps.length*100):0}; }
+function getStepStatus(ph,i){ const s=ph.steps[i]; if(s.done)return'done'; if(s.inprogress)return'inprogress'; if(!s.prereqs.length)return'can'; return s.checked.filter(Boolean).length<s.checked.length?'blocked':'can'; }
+function statusLabel(st){ return{done:'✓ Terminé',can:'Peut démarrer',blocked:'Ne peut pas démarrer',inprogress:'En cours'}[st]; }
+function statusBadge(st){ return{done:'badge-done',can:'badge-can',blocked:'badge-blocked',inprogress:'badge-progress'}[st]; }
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function formatDate(iso){ if(!iso)return''; return new Date(iso).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}); }
+function formatDateShort(iso){ if(!iso)return''; return new Date(iso).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+
+function createPhase(type){
+  const tmpl=TEMPLATES[type];
+  return { id:Date.now()+Math.floor(Math.random()*9999), type, notes:'',
+    steps:tmpl.steps.map(s=>({ name:s.name, remark:s.remark||'', deblocage:s.deblocage||0, phase:s.phase||'', prereqs:[...s.prereqs], checked:new Array(s.prereqs.length).fill(false), note:'', open:false, done:false, inprogress:false, doneAt:null, startedAt:null }))
+  };
+}
+
+// ════════════════════════════════════════
+//  RENDER SIDEBAR
+// ════════════════════════════════════════
+function renderSidebar(){
+  document.getElementById('navDash').classList.toggle('active',state.currentView==='dashboard');
+  const td=state.chantiers.reduce((a,c)=>a+c.phases.reduce((b,p)=>b+p.steps.filter(s=>s.done).length,0),0);
+  const tt=state.chantiers.reduce((a,c)=>a+c.phases.reduce((b,p)=>b+p.steps.length,0),0);
+  document.getElementById('dashMeta').textContent=state.chantiers.length===0?'Aucun chantier':`${state.chantiers.length} chantier${state.chantiers.length>1?'s':''} · ${td}/${tt}`;
+
+  document.getElementById('chantierList').innerHTML=state.chantiers.map(c=>{
+    const isExpanded=c.expanded!==false;
+    const phasesHtml=c.phases.map(ph=>{
+      const tmpl=TEMPLATES[ph.type]||{icon:'📋',iconClass:'pi-go',label:ph.type};
+      const prog=getProgress(ph);
+      const active=state.currentView==='project'&&state.currentChantierId===c.id&&state.currentPhaseId===ph.id;
+      return `<div class="phase-nav-item ${active?'active':''}" onclick="showProject(${c.id},${ph.id})">
+        <div class="phase-nav-icon ${tmpl.iconClass}">${tmpl.icon}</div>
+        <div class="phase-nav-info">
+          <div class="phase-nav-name">${tmpl.label}</div>
+          <div class="phase-nav-meta">${prog.done}/${prog.total} étapes</div>
+        </div>
+        <div class="phase-mini-prog"><div class="phase-mini-fill" style="width:${prog.pct}%"></div></div>
+        <button class="phase-del-btn" onclick="event.stopPropagation();deletePhase(${c.id},${ph.id})" title="Supprimer cette phase">×</button>
+      </div>`;
+    }).join('');
+    return `<div class="chantier-group ${isExpanded?'expanded':''}" id="cg_${c.id}">
+      <div class="chantier-group-header" onclick="toggleChantier(${c.id})">
+        <span class="cg-chevron">▶</span>
+        <span class="cg-name">${escHtml(c.name)}</span>
+        <div class="cg-actions" onclick="event.stopPropagation()">
+          <button class="icon-btn rename" title="Renommer" onclick="openRenameModal(${c.id})">✏</button>
+          <button class="icon-btn del" title="Supprimer" onclick="deleteChantier(${c.id})">×</button>
+        </div>
+      </div>
+      <div class="chantier-phases">
+        ${phasesHtml}
+        <div class="add-phase-btn" onclick="openAddPhaseModal(${c.id})">＋ Ajouter une phase</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════
+//  RENDER DASHBOARD
+// ════════════════════════════════════════
+function setDashFilter(key,val){ _dashFilter[key]=val; renderDashboard(); }
+
+function renderDashboard(){
+  const m=document.getElementById('mainContent');
+  const allPhases=state.chantiers.flatMap(c=>c.phases.map(p=>({...p,_chantierName:c.name,_chantierId:c.id})));
+
+  // Apply filters
+  let filtered=allPhases;
+  if(_dashFilter.type!=='all') filtered=filtered.filter(p=>p.type===_dashFilter.type);
+  if(_dashFilter.status!=='all'){
+    filtered=filtered.filter(p=>{
+      const sts=p.steps.map((_,i)=>getStepStatus(p,i));
+      if(_dashFilter.status==='done') return p.steps.length>0&&p.steps.every(s=>s.done);
+      if(_dashFilter.status==='inprogress') return sts.some(s=>s==='inprogress');
+      if(_dashFilter.status==='can') return sts.some(s=>s==='can');
+      if(_dashFilter.status==='blocked') return sts.some(s=>s==='blocked');
+      return true;
+    });
+  }
+
+  // KPIs (from filtered set)
+  const td=filtered.reduce((a,p)=>a+p.steps.filter(s=>s.done).length,0);
+  const tip=filtered.reduce((a,p)=>a+p.steps.filter((_,i)=>getStepStatus(p,i)==='inprogress').length,0);
+  const tcan=filtered.reduce((a,p)=>a+p.steps.filter((_,i)=>getStepStatus(p,i)==='can').length,0);
+  const pwb=filtered.filter(p=>p.steps.some(s=>s.deblocage>0));
+  let budgetKpi='—';
+  if(pwb.length){const avg=pwb.reduce((sum,p)=>{const tot=p.steps.reduce((a,s)=>a+(s.deblocage||0),0);const un=p.steps.reduce((a,s)=>a+(s.done&&s.deblocage?s.deblocage:0),0);return sum+(tot>0?un/tot*100:0);},0)/pwb.length;budgetKpi=Math.round(avg)+'%';}
+
+  // Filter chips
+  const typeOpts=[{k:'all',l:'Tous'},{k:'go',l:'🏗 Gros œuvre'},{k:'apt',l:'🏠 Appartement'},{k:'maison',l:'🏡 Maison'}];
+  const statusOpts=[{k:'all',l:'Tous'},{k:'inprogress',l:'▶ En cours'},{k:'can',l:'● Peut démarrer'},{k:'blocked',l:'✗ Bloqué'},{k:'done',l:'✓ Terminé'}];
+  const typeChips=typeOpts.map(t=>`<button class="dash-chip ${_dashFilter.type===t.k?'active':''}" onclick="setDashFilter('type','${t.k}')">${t.l}</button>`).join('');
+  const stChips=statusOpts.map(t=>`<button class="dash-chip ${_dashFilter.status===t.k?'active':''}" onclick="setDashFilter('status','${t.k}')">${t.l}</button>`).join('');
+
+  const activeFilters=(_dashFilter.type!=='all'?1:0)+(_dashFilter.status!=='all'?1:0);
+  const resultsLabel=`<div class="dash-results-label"><strong>${filtered.length}</strong> phase${filtered.length!==1?'s':''} affichée${filtered.length!==1?'s':''}${activeFilters?' sur '+allPhases.length+' total':''}</div>`;
+
+  const cards=allPhases.length===0
+    ?`<div class="empty-state"><div class="es-icon">🏗</div><h3>Aucun chantier</h3><p>Cliquez sur « + Nouveau chantier » pour commencer</p></div>`
+    :filtered.length===0
+    ?`<div class="empty-state"><div class="es-icon">🔍</div><h3>Aucun résultat</h3><p>Modifiez les filtres pour voir d'autres chantiers</p></div>`
+    :`<div class="projects-grid">${filtered.map(p=>{
+      const tmpl=TEMPLATES[p.type]||{icon:'📋',iconClass:'pi-go',label:p.type};
+      const prog=getProgress(p);
+      const sc={done:0,can:0,inprogress:0,blocked:0};
+      p.steps.forEach((_,i)=>sc[getStepStatus(p,i)]++);
+      return `<div class="proj-card" onclick="showProject(${p._chantierId},${p.id})">
+        <div class="proj-card-header">
+          <div class="proj-card-icon ${tmpl.iconClass}">${tmpl.icon}</div>
+          <div><div class="proj-card-name">${escHtml(p._chantierName)}</div><div class="proj-card-sub">${tmpl.label} — ${p.steps.length} étapes</div></div>
+        </div>
+        <div class="prog-bar"><div class="prog-bar-fill" style="width:${prog.pct}%"></div></div>
+        <div class="prog-label"><span>${prog.done}/${prog.total} terminées</span><span>${prog.pct}%</span></div>
+        <div class="proj-card-statuses">
+          ${sc.done?`<span class="status-pill sp-done">✓ ${sc.done} terminé${sc.done>1?'s':''}</span>`:''}
+          ${sc.inprogress?`<span class="status-pill sp-prog">▶ ${sc.inprogress} en cours</span>`:''}
+          ${sc.can?`<span class="status-pill sp-can">● ${sc.can} peut démarrer</span>`:''}
+          ${sc.blocked?`<span class="status-pill sp-blocked">✗ ${sc.blocked} bloqué${sc.blocked>1?'s':''}</span>`:''}
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+
+  m.innerHTML=`<div class="dashboard">
+    <div class="page-title">Tableau de bord</div>
+    <div class="page-sub">${new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}</div>
+    <div class="dash-filter-bar">
+      <div class="dash-filter-group">
+        <span class="dash-filter-label">Type</span>
+        <div class="dash-chips">${typeChips}</div>
+      </div>
+      <div class="dash-filter-sep"></div>
+      <div class="dash-filter-group">
+        <span class="dash-filter-label">Statut</span>
+        <div class="dash-chips">${stChips}</div>
+      </div>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi-card"><div class="kpi-label">Phases affichées</div><div class="kpi-value blue">${filtered.length}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Étapes terminées</div><div class="kpi-value green">${td}</div></div>
+      <div class="kpi-card"><div class="kpi-label">En cours</div><div class="kpi-value orange">${tip}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Peut démarrer</div><div class="kpi-value blue">${tcan}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Budget moy.</div><div class="kpi-value green">${budgetKpi}</div></div>
+    </div>
+    ${resultsLabel}
+    ${cards}
+  </div>`;
+}
+
+// ════════════════════════════════════════
+//  RENDER CHECKLIST
+// ════════════════════════════════════════
+function renderChecklist(cid,pid){
+  const ch=getChantier(cid);const ph=getPhase(cid,pid);
+  if(!ch||!ph){showDashboard();return;}
+  const tmpl=TEMPLATES[ph.type]||{icon:'📋',label:ph.type};
+  const prog=getProgress(ph);
+  const counts={all:ph.steps.length,can:0,inprogress:0,blocked:0,done:0};
+  ph.steps.forEach((_,i)=>counts[getStepStatus(ph,i)]++);
+  const filterTabs=[{key:'all',label:'Tous'},{key:'can',label:'Peut démarrer'},{key:'inprogress',label:'En cours'},{key:'blocked',label:'Bloqué'},{key:'done',label:'Terminé'}]
+    .map(t=>`<button class="ftab ${_filter===t.key?'active':''}" onclick="setFilter('${t.key}',${cid},${pid})">${t.label}<span class="ftab-count">${counts[t.key]}</span></button>`).join('');
+  const all=ph.steps.map((s,i)=>({s,i,st:getStepStatus(ph,i)}));
+  const shown=_filter==='all'?all:all.filter(x=>x.st===_filter);
+  const stepsHtml=shown.length===0?`<div class="filter-empty">Aucune étape dans cette catégorie.</div>`
+    :shown.map(({s,i,st})=>{
+      const numCls=st==='done'?'done':st==='can'?'can':st==='inprogress'?'inprogress':'';
+      const prereqsHtml=s.prereqs.map((pt,pi)=>`<div class="prereq-item"><div class="prereq-check ${s.checked[pi]?'checked':''}" onclick="togglePrereq(${cid},${pid},${i},${pi})">${s.checked[pi]?'✓':''}</div><div class="prereq-text ${s.checked[pi]?'checked':''}" onclick="togglePrereq(${cid},${pid},${i},${pi})">${escHtml(pt)}</div></div>`).join('');
+      const dateHtml=s.doneAt?`<div class="step-date done-date">✓ Terminé le ${formatDate(s.doneAt)}</div>`:s.startedAt?`<div class="step-date started-date">▶ Démarré le ${formatDate(s.startedAt)}</div>`:'';
+      const actionBtns=st==='done'?`<button class="step-btn step-btn-grey" onclick="markUndone(${cid},${pid},${i})">↩ Rouvrir</button>`
+        :st==='inprogress'?`<button class="step-btn step-btn-grey" onclick="markUndone(${cid},${pid},${i})">↩ Rouvrir</button><button class="step-btn step-btn-green" onclick="markDone(${cid},${pid},${i})">✓ Terminé</button>`
+        :st==='can'?`<button class="step-btn step-btn-blue" onclick="markInProgress(${cid},${pid},${i})">▶ Démarrer</button>`:'';
+      const phaseTag=s.phase?`<span class="phase-tag phase-${s.phase==='parachèvement'?'para':s.phase}">${s.phase}</span>`:'';
+      return `<div class="step-block ${s.open?'open':''}" id="sb_${cid}_${pid}_${i}">
+        <div class="step-header" onclick="toggleStep(${cid},${pid},${i})">
+          <div class="step-num ${numCls}">${i+1}</div>
+          <div class="step-info">
+            <div class="step-name">${escHtml(s.name)}${s.deblocage>0?`<span class="deblocage-badge">💰 ${s.deblocage}%</span>`:''}</div>
+            ${s.remark?`<div class="step-remark">${escHtml(s.remark)} ${phaseTag}</div>`:(s.phase?`<div class="step-remark">${phaseTag}</div>`:'')}
+          </div>
+          <div class="step-badge ${statusBadge(st)}">${statusLabel(st)}</div>
+          <div class="step-move-btns" onclick="event.stopPropagation()">
+            <button class="step-move-btn" onclick="moveStep(${cid},${pid},${i},-1)" ${i===0?'disabled':''} title="Monter">▲</button>
+            <button class="step-move-btn" onclick="moveStep(${cid},${pid},${i},1)" ${i===ph.steps.length-1?'disabled':''} title="Descendre">▼</button>
+          </div>
+          <div class="step-chevron">▼</div>
+        </div>
+        <div class="prereqs">
+          ${prereqsHtml||'<p style="font-size:12px;color:var(--ink3);padding:4px 0">Aucun prérequis défini.</p>'}
+          ${dateHtml}
+          <span class="note-label">📝 Remarque / note de visite</span>
+          <textarea class="note-input" rows="2" placeholder="Ajouter une note…" oninput="updateNote(${cid},${pid},${i},this.value)">${escHtml(s.note||'')}</textarea>
+          <div class="step-actions">
+            <button class="step-btn step-btn-edit" onclick="openEditStepModal(${cid},${pid},${i})">✏ Modifier l'étape</button>
+            <div class="step-actions-right">${actionBtns}</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+  const tot=ph.steps.reduce((a,s)=>a+(s.deblocage||0),0);
+  let uGo=0,uCC=0,uPa=0;
+  ph.steps.forEach(s=>{if(s.done&&s.deblocage){if(s.phase==='go')uGo+=s.deblocage;else if(s.phase==='couvert')uCC+=s.deblocage;else uPa+=s.deblocage;}});
+  const uTot=uGo+uCC+uPa;
+  const budgetHtml=tot>0?`<div class="deblocage-total-bar"><div class="dtb-header"><span class="dtb-title">💰 Budget débloqué</span><div><span class="dtb-val">${uTot.toFixed(1)}%</span> <span class="dtb-max">/ ${tot.toFixed(1)}% budget total</span></div></div><div class="dtb-bar-track"><div class="dtb-segment" style="width:${tot>0?uGo/tot*100:0}%;background:#e87a4a"></div><div class="dtb-segment" style="width:${tot>0?uCC/tot*100:0}%;background:#1e4a8a"></div><div class="dtb-segment" style="width:${tot>0?uPa/tot*100:0}%;background:#2a6b3a"></div></div><div class="dtb-legend"><div class="dtb-leg"><div class="dtb-leg-dot" style="background:#e87a4a"></div>GO ${uGo.toFixed(1)}%</div><div class="dtb-leg"><div class="dtb-leg-dot" style="background:#1e4a8a"></div>Couvert ${uCC.toFixed(1)}%</div><div class="dtb-leg"><div class="dtb-leg-dot" style="background:#2a6b3a"></div>Parachèvement ${uPa.toFixed(1)}%</div></div></div>`:'';
+  const pnOpen=_projectNotesOpen?'open':'';
+
+  document.getElementById('mainContent').innerHTML=`<div class="checklist-view">
+    <div class="checklist-header">
+      <div class="checklist-title-group">
+        <div class="checklist-type">${tmpl.icon} ${tmpl.label}</div>
+        <div class="checklist-title">${escHtml(ch.name)}</div>
+      </div>
+      <div class="checklist-header-btns">
+        <button class="back-btn" onclick="showDashboard()">← Tableau de bord</button>
+      </div>
+    </div>
+    <div class="progress-overview">
+      <div class="progress-overview-header"><span class="progress-overview-label">Avancement global</span><span class="progress-overview-value">${prog.done} / ${prog.total} étapes terminées (${prog.pct}%)</span></div>
+      <div class="progress-bar-main"><div class="progress-bar-main-fill" style="width:${prog.pct}%"></div></div>
+    </div>
+    ${budgetHtml}
+    <div class="project-notes-card ${pnOpen}" id="projectNotesCard">
+      <div class="project-notes-header" onclick="toggleProjectNotes()">
+        <span style="font-size:14px">📋</span>
+        <span class="project-notes-title">Notes de chantier${ph.notes&&ph.notes.trim()?' ●':''}</span>
+        <span class="project-notes-chevron">▼</span>
+      </div>
+      <div class="project-notes-body">
+        <textarea class="project-notes-textarea" placeholder="Notes générales (contacts, observations…)" oninput="updateProjectNotes(${cid},${pid},this.value)">${escHtml(ph.notes||'')}</textarea>
+      </div>
+    </div>
+    <div class="filter-bar">${filterTabs}</div>
+    ${stepsHtml}
+    <button class="add-step-btn" onclick="addStep(${cid},${pid})">＋ Ajouter une étape</button>
+  </div>`;
+}
+
+// ════════════════════════════════════════
+//  ACTIONS
+// ════════════════════════════════════════
+function showDashboard(){ state.currentView='dashboard'; state.currentChantierId=null; state.currentPhaseId=null; _filter='all'; render(); }
+function showProject(cid,pid){ state.currentView='project'; state.currentChantierId=cid; state.currentPhaseId=pid; _filter='all'; const c=getChantier(cid); if(c) c.expanded=true; render(); }
+function toggleChantier(cid){ const c=getChantier(cid); if(c){ c.expanded=!c.expanded; renderSidebar(); } }
+function setFilter(f,cid,pid){ _filter=f; renderChecklist(cid,pid); }
+
+function toggleStep(cid,pid,i){ const ph=getPhase(cid,pid); ph.steps[i].open=!ph.steps[i].open; renderChecklist(cid,pid); }
+function togglePrereq(cid,pid,si,pi){ const ph=getPhase(cid,pid); ph.steps[si].checked[pi]=!ph.steps[si].checked[pi]; autoSave(); render(); }
+function updateNote(cid,pid,si,v){ const ph=getPhase(cid,pid); ph.steps[si].note=v; clearTimeout(_noteDebounce); _noteDebounce=setTimeout(()=>autoSave(),1500); }
+function updateProjectNotes(cid,pid,v){ const ph=getPhase(cid,pid); ph.notes=v; clearTimeout(_noteDebounce); _noteDebounce=setTimeout(()=>autoSave(),1500); }
+function toggleProjectNotes(){ _projectNotesOpen=!_projectNotesOpen; const c=document.getElementById('projectNotesCard'); if(c)c.classList.toggle('open',_projectNotesOpen); }
+
+function markInProgress(cid,pid,si){ const ph=getPhase(cid,pid); const s=ph.steps[si]; s.inprogress=true;s.done=false;s.open=true; if(!s.startedAt)s.startedAt=new Date().toISOString(); autoSave();render();showToast('▶ Étape démarrée'); }
+function markDone(cid,pid,si){ const ph=getPhase(cid,pid); const s=ph.steps[si]; s.done=true;s.inprogress=false;s.checked=s.checked.map(()=>true);s.open=false;s.doneAt=new Date().toISOString(); if(!s.startedAt)s.startedAt=s.doneAt; autoSave();render();showToast('✓ Étape terminée'); }
+function markUndone(cid,pid,si){ const ph=getPhase(cid,pid); const s=ph.steps[si]; s.done=false;s.inprogress=false;s.checked=s.checked.map(()=>false);s.open=true;s.doneAt=null;s.startedAt=null; autoSave();render();showToast('↩ Étape réouverte'); }
+
+// Chantier CRUD
+function openAddChantierModal(){ document.getElementById('newChantierName').value=''; document.getElementById('addChantierModal').classList.add('open'); setTimeout(()=>document.getElementById('newChantierName').focus(),100); }
+function addChantier(){ const name=document.getElementById('newChantierName').value.trim(); const type=document.getElementById('newChantierType').value; if(!name)return; state.chantiers.push({id:Date.now(),name,expanded:true,phases:[createPhase(type)]}); closeModal('addChantierModal'); autoSave();render();showToast('🏗 Chantier créé'); }
+function openRenameModal(cid){ const c=getChantier(cid); document.getElementById('renameChantierId').value=cid; document.getElementById('renameChantierName').value=c.name; document.getElementById('renameModal').classList.add('open'); setTimeout(()=>{const el=document.getElementById('renameChantierName');el.select();},100); }
+function confirmRename(){ const cid=+document.getElementById('renameChantierId').value; const name=document.getElementById('renameChantierName').value.trim(); if(!name)return; getChantier(cid).name=name; closeModal('renameModal');autoSave();render();showToast('✏ Renommé'); }
+function deleteChantier(cid){ if(!confirm('Supprimer ce chantier et toutes ses phases ?'))return; state.chantiers=state.chantiers.filter(c=>c.id!==cid); if(state.currentChantierId===cid){state.currentView='dashboard';state.currentChantierId=null;state.currentPhaseId=null;} autoSave();render();showToast('🗑 Supprimé'); }
+
+// Phase CRUD
+function openAddPhaseModal(cid){ document.getElementById('addPhaseChantierId').value=cid; document.getElementById('addPhaseModal').classList.add('open'); }
+function confirmAddPhase(){ const cid=+document.getElementById('addPhaseChantierId').value; const type=document.getElementById('addPhaseType').value; const c=getChantier(cid); c.phases.push(createPhase(type)); closeModal('addPhaseModal');autoSave();render();showToast('➕ Phase ajoutée'); }
+function deletePhase(cid,pid){ if(!confirm('Supprimer cette phase ?'))return; const c=getChantier(cid); c.phases=c.phases.filter(p=>p.id!==pid); if(state.currentPhaseId===pid){state.currentView='dashboard';state.currentChantierId=null;state.currentPhaseId=null;} autoSave();render();showToast('🗑 Phase supprimée'); }
+
+// Step CRUD
+function openEditStepModal(cid,pid,idx){
+  const ph=getPhase(cid,pid); const s=ph.steps[idx];
+  document.getElementById('esChId').value=cid;
+  document.getElementById('esPId').value=pid;
+  document.getElementById('esIdx').value=idx;
+  document.getElementById('esName').value=s.name;
+  document.getElementById('esRemark').value=s.remark||'';
+  document.getElementById('esPhase').value=s.phase||'go';
+  document.getElementById('esDeblocage').value=s.deblocage||0;
+  document.getElementById('esPrereqs').value=(s.prereqs||[]).join('\n');
+  document.getElementById('editStepModal').classList.add('open');
+  setTimeout(()=>document.getElementById('esName').focus(),100);
+}
+function saveStepEdit(){
+  const cid=+document.getElementById('esChId').value;
+  const pid=+document.getElementById('esPId').value;
+  const idx=+document.getElementById('esIdx').value;
+  const ph=getPhase(cid,pid); const s=ph.steps[idx];
+  const newPrereqs=document.getElementById('esPrereqs').value.split('\n').map(x=>x.trim()).filter(Boolean);
+  s.name=document.getElementById('esName').value.trim()||s.name;
+  s.remark=document.getElementById('esRemark').value.trim();
+  s.phase=document.getElementById('esPhase').value;
+  s.deblocage=parseFloat(document.getElementById('esDeblocage').value)||0;
+  s.prereqs=newPrereqs;
+  s.checked=newPrereqs.map((_,i)=>s.checked[i]||false);
+  closeModal('editStepModal');autoSave();render();showToast('✏ Étape modifiée');
+}
+function deleteStepConfirm(){
+  if(!confirm('Supprimer cette étape définitivement ?'))return;
+  const cid=+document.getElementById('esChId').value;
+  const pid=+document.getElementById('esPId').value;
+  const idx=+document.getElementById('esIdx').value;
+  const ph=getPhase(cid,pid);
+  ph.steps.splice(idx,1);
+  closeModal('editStepModal');autoSave();render();showToast('🗑 Étape supprimée');
+}
+function moveStep(cid,pid,idx,dir){
+  const ph=getPhase(cid,pid);
+  const ni=idx+dir;
+  if(ni<0||ni>=ph.steps.length)return;
+  [ph.steps[idx],ph.steps[ni]]=[ph.steps[ni],ph.steps[idx]];
+  autoSave();render();
+}
+function addStep(cid,pid){
+  const ph=getPhase(cid,pid);
+  ph.steps.push({name:'Nouvelle étape',remark:'',deblocage:0,phase:'go',prereqs:[],checked:[],note:'',open:true,done:false,inprogress:false,doneAt:null,startedAt:null});
+  const idx=ph.steps.length-1;
+  autoSave();render();
+  setTimeout(()=>openEditStepModal(cid,pid,idx),50);
+}
+
+// ════════════════════════════════════════
+//  PROFIL ENTREPRISE
+// ════════════════════════════════════════
+function openProfileModal(){
+  document.getElementById('profileCompanyName').value=state.profile.companyName||'';
+  renderLogoPreview(state.profile.logo);
+  document.getElementById('profileModal').classList.add('open');
+}
+function saveProfile(){
+  state.profile.companyName=document.getElementById('profileCompanyName').value.trim();
+  closeModal('profileModal');
+  autoSave();
+  updateHeaderLogo();
+  showToast('✓ Profil enregistré');
+}
+function clearLogo(){
+  state.profile.logo=null;
+  renderLogoPreview(null);
+  showToast('🗑 Logo supprimé');
+}
+function renderLogoPreview(logo){
+  const el=document.getElementById('logoPreviewArea');
+  if(!el)return;
+  if(logo){
+    el.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;gap:8px"><img src="${logo}" style="max-height:80px;max-width:220px;object-fit:contain;border-radius:6px"><span style="font-size:11px;color:var(--ink3)">Cliquer pour remplacer</span></div>`;
+  } else {
+    el.innerHTML=`<div class="drop-placeholder"><div class="drop-icon">🖼</div><div>Glisser le logo ici ou cliquer pour sélectionner</div><div style="font-size:11px;margin-top:4px;color:var(--ink3)">PNG · JPG · SVG · max 2 Mo</div></div>`;
+  }
+}
+function handleLogoDrop(e){
+  e.preventDefault();
+  document.getElementById('logoDropZone').classList.remove('dragover');
+  const file=e.dataTransfer?.files[0];
+  if(file) processLogoFile(file);
+}
+function handleLogoFile(e){
+  const file=e.target.files?.[0];
+  if(file) processLogoFile(file);
+  e.target.value='';
+}
+function processLogoFile(file){
+  if(!file.type.startsWith('image/')){showToast('❌ Format non supporté');return;}
+  if(file.size>2*1024*1024){showToast('❌ Logo trop lourd (max 2 Mo)');return;}
+  const reader=new FileReader();
+  reader.onload=ev=>{ state.profile.logo=ev.target.result; renderLogoPreview(state.profile.logo); showToast('✓ Logo chargé'); };
+  reader.readAsDataURL(file);
+}
+function updateHeaderLogo(){
+  const el=document.getElementById('logoArea');
+  if(!el)return;
+  if(state.profile.logo){
+    el.innerHTML=`<img src="${state.profile.logo}" style="height:34px;max-width:160px;object-fit:contain;border-radius:4px" alt="Logo">`;
+    if(state.profile.companyName) el.innerHTML+=`<span style="color:#fff;font-size:13px;font-weight:600;margin-left:10px;opacity:.9">${escHtml(state.profile.companyName)}</span>`;
+  } else {
+    const name=state.profile.companyName||'ChantierPro';
+    el.innerHTML=`<div class="logo-dot"></div>${escHtml(name)} <span style="opacity:.4;font-size:11px;margin-left:4px">v6</span>`;
+  }
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function showToast(msg){ const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500); }
+function render(){ updateHeaderLogo(); renderSidebar(); if(state.currentView==='dashboard')renderDashboard(); else if(state.currentView==='project')renderChecklist(state.currentChantierId,state.currentPhaseId); }
+
+// Modal close handlers
+['addChantierModal','addPhaseModal','renameModal','editStepModal','profileModal'].forEach(id=>{ document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);}); });
+document.getElementById('loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ ['addChantierModal','addPhaseModal','renameModal','editStepModal','profileModal'].forEach(id=>closeModal(id)); }
+  if(e.key==='Enter'){
+    const ls=document.getElementById('loginScreen');
+    if(ls&&ls.style.display!=='none')doLogin();
+    else if(document.getElementById('addChantierModal').classList.contains('open'))addChantier();
+    else if(document.getElementById('renameModal').classList.contains('open'))confirmRename();
+  }
+});
+
+// ════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════
+document.addEventListener('firebaseReady',()=>{
+  window._fbOnAuth(user=>{
+    if(user){
+      _uid=user.uid;
+      hideLoginScreen(user);
+      setSyncStatus('syncing');
+      state={chantiers:[],profile:{logo:null,companyName:''},currentView:'dashboard',currentChantierId:null,currentPhaseId:null};
+      render();
+      startFirebaseListener();
+    } else {
+      _uid=null;
+      state={chantiers:[],currentView:'dashboard',currentChantierId:null,currentPhaseId:null};
+      showLoginScreen();
+    }
+  });
+});
+</script>
+</body></html>
