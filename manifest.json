@@ -1,0 +1,20 @@
+{
+  "name": "F Estates",
+  "short_name": "F Estates",
+  "description": "Suivi de chantier F Estates",
+  "start_url": "/suivi-chantier-f-estates/",
+  "scope": "/suivi-chantier-f-estates/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#0b1d4d",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
