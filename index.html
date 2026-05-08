@@ -207,11 +207,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 .badge-progress{background:var(--orange-bg);color:var(--orange);}
 .step-chevron{color:var(--ink3);font-size:12px;flex-shrink:0;transition:transform .2s;}
 .step-block.open .step-chevron{transform:rotate(180deg);}
-.step-move-btns{display:flex;flex-direction:column;gap:1px;opacity:0;transition:opacity .15s;flex-shrink:0;}
-.step-block:hover .step-move-btns{opacity:1;}
-.step-move-btn{background:none;border:none;cursor:pointer;color:var(--ink3);font-size:10px;padding:2px 5px;border-radius:3px;line-height:1;font-family:'DM Mono',monospace;}
-.step-move-btn:hover:not(:disabled){background:var(--paper2);color:var(--ink);}
-.step-move-btn:disabled{opacity:.25;cursor:default;}
+.step-move-btns{display:none;}
+.step-drag-handle{display:flex;align-items:center;justify-content:center;width:28px;flex-shrink:0;cursor:grab;color:var(--ink3);font-size:18px;opacity:0;transition:opacity .15s;touch-action:none;user-select:none;letter-spacing:-1px;}
+.step-block:hover .step-drag-handle{opacity:1;}
+.step-drag-handle:active{cursor:grabbing;}
+.step-block.is-dragging{opacity:.35;box-shadow:none;}
+.step-block.drop-before{border-top:2.5px solid var(--accent);}
+.step-block.drop-after{border-bottom:2.5px solid var(--accent);}
 .prereqs{border-top:1px solid var(--paper3);padding:.75rem 1.25rem 1rem;display:none;background:#fdfcf9;}
 .step-block.open .prereqs{display:block;}
 .prereq-item{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid var(--paper3);}
@@ -1457,18 +1459,23 @@ function renderChecklist(cid,pid){
           :st==='inprogress'?`<button class="step-btn step-btn-grey" onclick="markUndone(${cid},${pid},${i})">↩ Rouvrir</button><button class="step-btn step-btn-green" onclick="markDone(${cid},${pid},${i})">✓ Terminé</button>`
           :st==='can'?`<button class="step-btn step-btn-blue" onclick="markInProgress(${cid},${pid},${i})">▶ Démarrer</button>`:'';
         const phaseTag=s.phase?`<span class="phase-tag phase-${s.phase==='parachèvement'?'para':s.phase}">${s.phase}</span>`:'';
-        return `<div class="step-block ${s.open?'open':''}" id="sb_${cid}_${pid}_${i}">
+        return `<div class="step-block ${s.open?'open':''}" id="sb_${cid}_${pid}_${i}" draggable="true"
+            ondragstart="stepDragStart(event,${cid},${pid},${i})"
+            ondragover="stepDragOver(event,${cid},${pid},${i})"
+            ondragleave="stepDragLeave(event)"
+            ondrop="stepDrop(event,${cid},${pid},${i})"
+            ondragend="stepDragEnd(event)">
           <div class="step-header" onclick="toggleStep(${cid},${pid},${i})">
+            <div class="step-drag-handle" onclick="event.stopPropagation()"
+              ontouchstart="stepTouchStart(event,${cid},${pid},${i})"
+              ontouchmove="stepTouchMove(event)"
+              ontouchend="stepTouchEnd(event)">⠿</div>
             <div class="step-num ${numCls}">${i+1}</div>
             <div class="step-info">
               <div class="step-name">${escHtml(s.name)}</div>
               ${s.remark?`<div class="step-remark">${escHtml(s.remark)} ${phaseTag}</div>`:(s.phase?`<div class="step-remark">${phaseTag}</div>`:'')}
             </div>
             <div class="step-badge ${statusBadge(st)}">${statusLabel(st)}</div>
-            <div class="step-move-btns" onclick="event.stopPropagation()">
-              <button class="step-move-btn" onclick="moveStep(${cid},${pid},${i},-1)" ${i===0?'disabled':''} title="Monter">▲</button>
-              <button class="step-move-btn" onclick="moveStep(${cid},${pid},${i},1)" ${i===ph.steps.length-1?'disabled':''} title="Descendre">▼</button>
-            </div>
             <div class="step-chevron">▼</div>
           </div>
           <div class="prereqs">
@@ -2096,6 +2103,88 @@ function moveStep(cid,pid,idx,dir){
   if(ni<0||ni>=ph.steps.length)return;
   [ph.steps[idx],ph.steps[ni]]=[ph.steps[ni],ph.steps[idx]];
   autoSave();render();
+}
+
+// ── Drag-and-drop step reorder ──
+let _dragStep={cid:null,pid:null,idx:null};
+function _stepEls(){ return [...document.querySelectorAll('.step-block[draggable]')]; }
+function _clearDragStyles(){ _stepEls().forEach(el=>el.classList.remove('is-dragging','drop-before','drop-after')); }
+
+function stepDragStart(e,cid,pid,idx){
+  _dragStep={cid,pid,idx};
+  e.dataTransfer.effectAllowed='move';
+  setTimeout(()=>document.getElementById('sb_'+cid+'_'+pid+'_'+idx)?.classList.add('is-dragging'),0);
+}
+function stepDragOver(e,cid,pid,idx){
+  if(_dragStep.idx===null||(_dragStep.cid===cid&&_dragStep.pid===pid&&_dragStep.idx===idx))return;
+  e.preventDefault(); e.dataTransfer.dropEffect='move';
+  _stepEls().forEach(el=>el.classList.remove('drop-before','drop-after'));
+  const el=document.getElementById('sb_'+cid+'_'+pid+'_'+idx);
+  if(!el)return;
+  const rect=el.getBoundingClientRect();
+  el.classList.add(e.clientY<rect.top+rect.height/2?'drop-before':'drop-after');
+}
+function stepDragLeave(e){
+  if(!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.classList.remove('drop-before','drop-after');
+}
+function stepDrop(e,cid,pid,toIdx){
+  e.preventDefault();
+  const {cid:fc,pid:fp,idx:fromIdx}=_dragStep;
+  if(fromIdx===null||fromIdx===toIdx||fc!==cid||fp!==pid){_clearDragStyles();return;}
+  const el=document.getElementById('sb_'+cid+'_'+pid+'_'+toIdx);
+  const rect=el?.getBoundingClientRect();
+  const insertBefore=rect&&e.clientY<rect.top+rect.height/2;
+  const ph=getPhase(cid,pid);
+  const moved=ph.steps.splice(fromIdx,1)[0];
+  let dest=toIdx>fromIdx?toIdx-1:toIdx;
+  if(!insertBefore) dest++;
+  ph.steps.splice(dest,0,moved);
+  _dragStep={cid:null,pid:null,idx:null};
+  _clearDragStyles(); autoSave(); render();
+}
+function stepDragEnd(){ _dragStep={cid:null,pid:null,idx:null}; _clearDragStyles(); }
+
+// ── Touch drag for mobile ──
+let _touchDrag={active:false,cid:null,pid:null,idx:null,el:null,clone:null};
+function stepTouchStart(e,cid,pid,idx){
+  e.stopPropagation();
+  const el=e.currentTarget.closest('.step-block');
+  _touchDrag={active:true,cid,pid,idx,el,clone:null};
+  el.classList.add('is-dragging');
+}
+function stepTouchMove(e){
+  if(!_touchDrag.active)return;
+  e.preventDefault();
+  const t=e.touches[0];
+  const under=document.elementFromPoint(t.clientX,t.clientY);
+  const target=under?.closest('.step-block[draggable]');
+  _stepEls().forEach(el=>el.classList.remove('drop-before','drop-after'));
+  if(target&&target!==_touchDrag.el){
+    const rect=target.getBoundingClientRect();
+    target.classList.add(t.clientY<rect.top+rect.height/2?'drop-before':'drop-after');
+  }
+}
+function stepTouchEnd(e){
+  if(!_touchDrag.active)return;
+  const t=e.changedTouches[0];
+  const under=document.elementFromPoint(t.clientX,t.clientY);
+  const target=under?.closest('.step-block[draggable]');
+  if(target&&target!==_touchDrag.el){
+    const idParts=target.id.split('_');
+    const toIdx=parseInt(idParts[idParts.length-1]);
+    const {cid,pid,idx:fromIdx}=_touchDrag;
+    const rect=target.getBoundingClientRect();
+    const insertBefore=t.clientY<rect.top+rect.height/2;
+    const ph=getPhase(cid,pid);
+    const moved=ph.steps.splice(fromIdx,1)[0];
+    let dest=toIdx>fromIdx?toIdx-1:toIdx;
+    if(!insertBefore) dest++;
+    ph.steps.splice(dest,0,moved);
+    autoSave(); render();
+  } else {
+    _clearDragStyles();
+  }
+  _touchDrag={active:false,cid:null,pid:null,idx:null,el:null,clone:null};
 }
 function addStep(cid,pid){
   const ph=getPhase(cid,pid);
