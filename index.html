@@ -739,7 +739,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 <div class="modal-overlay" id="editStepModal">
   <div class="modal wide">
     <h3>✏ Modifier l'étape</h3>
-    <input type="hidden" id="esChId"><input type="hidden" id="esPId"><input type="hidden" id="esIdx">
+    <input type="hidden" id="esChId"><input type="hidden" id="esPId"><input type="hidden" id="esIdx"><input type="hidden" id="esAptId" value="">
     <label>Nom de l'étape</label>
     <input type="text" id="esName" placeholder="Nom de l'étape">
     <label>Remarque (optionnel)</label>
@@ -1886,8 +1886,17 @@ function renderAptDetail(cid,pid,apt){
       :st==='can'
       ?`<button class="step-btn step-btn-blue" onclick="markAptInProgress('${apt.id}',${cid},${pid},${i})">▶ Démarrer</button>`:'';
     const dateHtml=s.doneAt?`<div class="step-date done-date">✓ Terminé le ${formatDate(s.doneAt)}</div>`:s.startedAt?`<div class="step-date started-date">▶ Démarré le ${formatDate(s.startedAt)}</div>`:'';
-    return `<div class="step-block ${s.open?'open':''}" id="absb_${apt.id}_${i}">
+    return `<div class="step-block ${s.open?'open':''}" id="absb_${apt.id}_${i}" draggable="true"
+        ondragstart="aptStepDragStart(event,'${apt.id}',${cid},${pid},${i})"
+        ondragover="aptStepDragOver(event,'${apt.id}',${cid},${pid},${i})"
+        ondragleave="stepDragLeave(event)"
+        ondrop="aptStepDrop(event,'${apt.id}',${cid},${pid},${i})"
+        ondragend="stepDragEnd(event)">
       <div class="step-header" onclick="toggleAptStep('${apt.id}',${cid},${pid},${i})">
+        <div class="step-drag-handle" onclick="event.stopPropagation()"
+          ontouchstart="aptStepTouchStart(event,'${apt.id}',${cid},${pid},${i})"
+          ontouchmove="stepTouchMove(event)"
+          ontouchend="aptStepTouchEnd(event,'${apt.id}',${cid},${pid})">⠿</div>
         <div class="step-num ${numCls}">${i+1}</div>
         <div class="step-info">
           <div class="step-name">${escHtml(s.name)}</div>
@@ -1904,7 +1913,10 @@ function renderAptDetail(cid,pid,apt){
         ${renderAptJournal(apt.id,cid,pid,i,s)}
         <span class="note-label">📝 Note rapide</span>
         <textarea class="note-input" rows="2" placeholder="Ajouter une note…" oninput="updateAptNote('${apt.id}',${cid},${pid},${i},this.value)">${escHtml(s.note||'')}</textarea>
-        <div class="step-actions">${actionBtns}</div>
+        <div class="step-actions">
+          <button class="step-btn step-btn-edit" onclick="openEditStepModal(${cid},${pid},${i},'${apt.id}')">✏ Modifier</button>
+          <div class="step-actions-right">${actionBtns}</div>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1926,6 +1938,7 @@ function renderAptDetail(cid,pid,apt){
       <button class="ftab active" style="cursor:default">Toutes les étapes <span class="ftab-count">${apt.steps.length}</span></button>
     </div>
     ${stepsHtml}
+    <button class="add-step-btn" onclick="addAptStep('${apt.id}',${cid},${pid})">＋ Ajouter une étape</button>
   </div>`;
 }
 
@@ -1987,6 +2000,71 @@ function markAptUndone(aptId,cid,pid,i){
 function updateAptNote(aptId,cid,pid,i,v){
   const ph=getPhase(cid,pid);const apt=(ph.appartements||[]).find(a=>a.id===aptId);if(!apt)return;
   apt.steps[i].note=v;clearTimeout(_noteDebounce);_noteDebounce=setTimeout(()=>autoSave(),1500);
+}
+function addAptStep(aptId,cid,pid){
+  const ph=getPhase(cid,pid);const apt=(ph.appartements||[]).find(a=>a.id===aptId);if(!apt)return;
+  apt.steps.push({name:'Nouvelle étape',remark:'',phase:'go',prereqs:[],checked:[],note:'',open:true,done:false,inprogress:false,doneAt:null,startedAt:null,assignedSTs:[],photos:[],journal:[]});
+  autoSave();renderChecklist(cid,pid);
+  // Open edit modal on the new step
+  setTimeout(()=>openEditStepModal(cid,pid,apt.steps.length-1,aptId),50);
+}
+
+// ── Apt step drag-and-drop ──
+let _dragAptStep={aptId:null,cid:null,pid:null,idx:null};
+function _aptStepEls(aptId){ return [...document.querySelectorAll(`[id^="absb_${aptId}_"]`)]; }
+function _clearAptDragStyles(aptId){ _aptStepEls(aptId).forEach(el=>el.classList.remove('is-dragging','drop-before','drop-after')); }
+
+function aptStepDragStart(e,aptId,cid,pid,idx){
+  _dragAptStep={aptId,cid,pid,idx};
+  e.dataTransfer.effectAllowed='move';
+  setTimeout(()=>document.getElementById('absb_'+aptId+'_'+idx)?.classList.add('is-dragging'),0);
+}
+function aptStepDragOver(e,aptId,cid,pid,idx){
+  if(_dragAptStep.idx===null||_dragAptStep.idx===idx)return;
+  e.preventDefault();e.dataTransfer.dropEffect='move';
+  _aptStepEls(aptId).forEach(el=>el.classList.remove('drop-before','drop-after'));
+  const el=document.getElementById('absb_'+aptId+'_'+idx);if(!el)return;
+  const rect=el.getBoundingClientRect();
+  el.classList.add(e.clientY<rect.top+rect.height/2?'drop-before':'drop-after');
+}
+function aptStepDrop(e,aptId,cid,pid,toIdx){
+  e.preventDefault();
+  const fromIdx=_dragAptStep.idx;
+  if(fromIdx===null||fromIdx===toIdx){_clearAptDragStyles(aptId);return;}
+  const el=document.getElementById('absb_'+aptId+'_'+toIdx);
+  const rect=el?.getBoundingClientRect();
+  const insertBefore=rect&&e.clientY<rect.top+rect.height/2;
+  const ph=getPhase(cid,pid);const apt=(ph.appartements||[]).find(a=>a.id===aptId);if(!apt)return;
+  const moved=apt.steps.splice(fromIdx,1)[0];
+  let dest=toIdx>fromIdx?toIdx-1:toIdx;if(!insertBefore)dest++;
+  apt.steps.splice(dest,0,moved);
+  _dragAptStep={aptId:null,cid:null,pid:null,idx:null};
+  _clearAptDragStyles(aptId);autoSave();renderChecklist(cid,pid);
+}
+
+// ── Apt touch drag ──
+let _touchAptDrag={active:false,aptId:null,cid:null,pid:null,idx:null,el:null};
+function aptStepTouchStart(e,aptId,cid,pid,idx){
+  e.stopPropagation();
+  const el=e.currentTarget.closest('.step-block');
+  _touchAptDrag={active:true,aptId,cid,pid,idx,el};
+  el.classList.add('is-dragging');
+}
+function aptStepTouchEnd(e,aptId,cid,pid){
+  if(!_touchAptDrag.active)return;
+  const t=e.changedTouches[0];
+  const under=document.elementFromPoint(t.clientX,t.clientY);
+  const target=under?.closest('[id^="absb_'+aptId+'_"]');
+  if(target&&target!==_touchAptDrag.el){
+    const idParts=target.id.split('_');const toIdx=parseInt(idParts[idParts.length-1]);
+    const fromIdx=_touchAptDrag.idx;
+    const rect=target.getBoundingClientRect();const insertBefore=t.clientY<rect.top+rect.height/2;
+    const ph=getPhase(cid,pid);const apt=(ph.appartements||[]).find(a=>a.id===aptId);if(!apt)return;
+    const moved=apt.steps.splice(fromIdx,1)[0];
+    let dest=toIdx>fromIdx?toIdx-1:toIdx;if(!insertBefore)dest++;
+    apt.steps.splice(dest,0,moved);autoSave();renderChecklist(cid,pid);
+  } else { _clearAptDragStyles(aptId); }
+  _touchAptDrag={active:false,aptId:null,cid:null,pid:null,idx:null,el:null};
 }
 
 // Apt plan handling
@@ -2063,11 +2141,14 @@ function removeAptPlan(aptId,cid,pid,idx){
 function deletePhase(cid,pid){ if(!confirm('Supprimer cette phase ?'))return; const c=getChantier(cid); c.phases=c.phases.filter(p=>p.id!==pid); if(state.currentPhaseId===pid){state.currentView='dashboard';state.currentChantierId=null;state.currentPhaseId=null;} autoSave();render();showToast('🗑 Phase supprimée'); }
 
 // Step CRUD
-function openEditStepModal(cid,pid,idx){
-  const ph=getPhase(cid,pid); const s=ph.steps[idx];
+function openEditStepModal(cid,pid,idx,aptId){
+  const ph=getPhase(cid,pid);
+  const s=aptId?(ph.appartements||[]).find(a=>a.id===aptId)?.steps[idx]:ph.steps[idx];
+  if(!s)return;
   document.getElementById('esChId').value=cid;
   document.getElementById('esPId').value=pid;
   document.getElementById('esIdx').value=idx;
+  document.getElementById('esAptId').value=aptId||'';
   document.getElementById('esName').value=s.name;
   document.getElementById('esRemark').value=s.remark||'';
   document.getElementById('esPhase').value=s.phase||'go';
@@ -2075,11 +2156,19 @@ function openEditStepModal(cid,pid,idx){
   document.getElementById('editStepModal').classList.add('open');
   setTimeout(()=>document.getElementById('esName').focus(),100);
 }
-function saveStepEdit(){
+function _getEditStep(){
   const cid=+document.getElementById('esChId').value;
   const pid=+document.getElementById('esPId').value;
   const idx=+document.getElementById('esIdx').value;
-  const ph=getPhase(cid,pid); const s=ph.steps[idx];
+  const aptId=document.getElementById('esAptId').value||null;
+  const ph=getPhase(cid,pid);
+  const steps=aptId?(ph.appartements||[]).find(a=>a.id===aptId)?.steps:ph.steps;
+  return{cid,pid,idx,aptId,steps};
+}
+function saveStepEdit(){
+  const {cid,pid,idx,steps}=_getEditStep();
+  if(!steps)return;
+  const s=steps[idx];
   const newPrereqs=document.getElementById('esPrereqs').value.split('\n').map(x=>x.trim()).filter(Boolean);
   s.name=document.getElementById('esName').value.trim()||s.name;
   s.remark=document.getElementById('esRemark').value.trim();
@@ -2090,11 +2179,9 @@ function saveStepEdit(){
 }
 function deleteStepConfirm(){
   if(!confirm('Supprimer cette étape définitivement ?'))return;
-  const cid=+document.getElementById('esChId').value;
-  const pid=+document.getElementById('esPId').value;
-  const idx=+document.getElementById('esIdx').value;
-  const ph=getPhase(cid,pid);
-  ph.steps.splice(idx,1);
+  const {steps,idx}=_getEditStep();
+  if(!steps)return;
+  steps.splice(idx,1);
   closeModal('editStepModal');autoSave();render();showToast('🗑 Étape supprimée');
 }
 function moveStep(cid,pid,idx,dir){
