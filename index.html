@@ -60,8 +60,50 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 .sidebar.collapsed{transform:translateX(-100%);width:0;padding:0;overflow:hidden;border:none;}
 .sidebar-toggle{position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:200;background:var(--accent);color:#fff;border:none;border-radius:0 8px 8px 0;width:22px;height:56px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:2px 0 8px rgba(0,0,0,.15);transition:left .3s cubic-bezier(.4,0,.2,1);}
 .sidebar-toggle.open{left:270px;}
-@media(max-width:700px){.sidebar{width:230px;}.sidebar-toggle.open{left:230px;}.kpi-row{grid-template-columns:repeat(3,1fr);}.dash-filter-bar{flex-direction:column;gap:.75rem;}}
-@media(max-width:500px){.sidebar-toggle.open{left:230px;}}
+/* ══ MOBILE RESPONSIVE ══ */
+@media(max-width:768px){
+  /* Sidebar: overlay on mobile */
+  .sidebar{position:fixed;top:56px;left:0;height:calc(100vh - 56px);z-index:150;transform:translateX(-100%);width:270px!important;box-shadow:4px 0 24px rgba(0,0,0,.18);}
+  .sidebar.mobile-open{transform:translateX(0);}
+  .sidebar-toggle{display:flex!important;}
+  .sidebar-toggle.open{left:0!important;}
+  .sidebar-toggle.mobile-open{left:270px!important;}
+  /* Overlay behind sidebar */
+  #sidebarOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:140;}
+  #sidebarOverlay.show{display:block;}
+  /* Main content full width */
+  .layout{display:block;}
+  #mainContent{width:100%!important;min-height:calc(100vh - 56px);}
+  /* Header: hide less important buttons */
+  .header-btn:not(.primary){display:none;}
+  .user-badge{display:none;}
+  /* KPI grid: 2 columns */
+  .kpi-row{grid-template-columns:repeat(2,1fr)!important;gap:.6rem!important;}
+  .kpi-card{padding:.8rem!important;}
+  .kpi-val{font-size:22px!important;}
+  /* Dashboard padding */
+  #mainContent > div{padding:1rem!important;}
+  /* Checklist header */
+  .checklist-header-btns{flex-wrap:wrap;gap:.4rem;}
+  /* Filter bar */
+  .dash-filter-bar{flex-direction:column;gap:.6rem;}
+  /* Tables: horizontal scroll */
+  table{font-size:12px!important;}
+  /* Phase cards full width */
+  .phase-grid{grid-template-columns:1fr!important;}
+  /* AI Chat: full width bottom */
+  #aiChatPanel{width:100vw!important;right:0!important;bottom:0!important;border-radius:16px 16px 0 0!important;max-height:75vh!important;}
+  #aiChatBtn{bottom:16px!important;right:16px!important;}
+  /* Reunions */
+  .reunion-list{gap:.5rem;}
+}
+@media(max-width:480px){
+  .kpi-row{grid-template-columns:repeat(2,1fr)!important;}
+  .header{padding:0 .75rem;}
+  .logo img{height:26px;}
+  /* Planning filter buttons wrap */
+  button[onclick*="_planFilter"]{font-size:11px!important;padding:4px 8px!important;}
+}
 .sidebar-title{font-size:10px;font-weight:600;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;padding:0 .5rem;margin-bottom:.2rem;margin-top:.75rem;}
 
 /* NAV ITEMS (dashboard/rapport) */
@@ -711,6 +753,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 <body>
 
 <button class="sidebar-toggle open" id="sidebarToggle" onclick="toggleSidebar()" title="Masquer/afficher la navigation">‹</button>
+<div id="sidebarOverlay" onclick="closeSidebarMobile()"></div>
 
 <div id="loginScreen">
   <div class="login-card">
@@ -747,11 +790,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 <div class="layout">
   <aside class="sidebar">
     <div class="sidebar-title">Navigation</div>
-    <div class="nav-item" id="navDash" onclick="showDashboard()">
+    <div class="nav-item" id="navDash" onclick="showDashboard();closeSidebarMobile()">
       <div class="nav-icon ni-dash">📊</div>
       <div class="nav-info"><div class="nav-name">Tableau de bord</div><div class="nav-meta" id="dashMeta">Chargement…</div></div>
     </div>
-    <div class="nav-item" id="navST" onclick="openSTManage()">
+    <div class="nav-item" id="navST" onclick="openSTManage();closeSidebarMobile()">
       <div class="nav-icon ni-st">👷</div>
       <div class="nav-info"><div class="nav-name">Sous-traitants</div><div class="nav-meta" id="stMeta">—</div></div>
     </div>
@@ -764,11 +807,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
       <div class="nav-icon" style="background:#e8f5e9">👥</div>
       <div class="nav-info"><div class="nav-name">Mon équipe</div><div class="nav-meta" id="teamMeta">—</div></div>
     </div>
-    <div class="nav-item" id="navReunions" onclick="openReunionPanelSidebar()">
+    <div class="nav-item" id="navReunions" onclick="openReunionPanelSidebar();closeSidebarMobile()">
       <div class="nav-icon" style="background:#fff3e0">📋</div>
       <div class="nav-info"><div class="nav-name">Réunions de chantier</div><div class="nav-meta" id="reunionNavMeta">—</div></div>
     </div>
-    <div class="nav-item" id="navPlanning" onclick="showPlanning()">
+    <div class="nav-item" id="navPlanning" onclick="showPlanning();closeSidebarMobile()">
       <div class="nav-icon" style="background:#e8f0fe">📅</div>
       <div class="nav-info"><div class="nav-name">Planning</div><div class="nav-meta" id="planningNavMeta">—</div></div>
     </div>
@@ -3874,12 +3917,27 @@ function updateHeaderLogo(){
   }
 }
 
+function isMobile(){return window.innerWidth<=768;}
 function toggleSidebar(){
   const sb=document.querySelector('.sidebar');
   const btn=document.getElementById('sidebarToggle');
-  const collapsed=sb.classList.toggle('collapsed');
-  btn.textContent=collapsed?'›':'‹';
-  btn.classList.toggle('open',!collapsed);
+  const ov=document.getElementById('sidebarOverlay');
+  if(isMobile()){
+    const open=sb.classList.toggle('mobile-open');
+    btn.classList.toggle('mobile-open',open);
+    if(ov)ov.classList.toggle('show',open);
+  } else {
+    const collapsed=sb.classList.toggle('collapsed');
+    btn.textContent=collapsed?'›':'‹';
+    btn.classList.toggle('open',!collapsed);
+  }
+}
+function closeSidebarMobile(){
+  if(!isMobile())return;
+  document.querySelector('.sidebar').classList.remove('mobile-open');
+  document.getElementById('sidebarToggle').classList.remove('mobile-open');
+  const ov=document.getElementById('sidebarOverlay');
+  if(ov)ov.classList.remove('show');
 }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 function showToast(msg){ const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500); }
@@ -4519,6 +4577,8 @@ document.addEventListener('firebaseReady',()=>{
       startFirebaseListener();
       if(!_isWorker) setTimeout(()=>refreshTeamList().catch(()=>{}),1500);
       initAiChat();
+      // Auto-collapse sidebar on mobile
+      if(isMobile()){const sb=document.querySelector('.sidebar');if(sb){sb.classList.remove('mobile-open');const btn=document.getElementById('sidebarToggle');if(btn){btn.classList.remove('mobile-open');}}}
     } else {
       _uid=null;_adminUid=null;_isWorker=false;_workerName='';_allowedChantiers=[];
       state={chantiers:[],currentView:'dashboard',currentChantierId:null,currentPhaseId:null};
