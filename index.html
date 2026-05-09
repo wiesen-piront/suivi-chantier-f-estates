@@ -5360,14 +5360,14 @@ async function genererRapport(){
   var typeLabel=typeLabels[type]||'Rapport';
 
   var systemPrompt='Tu es un assistant spécialisé dans la rédaction de documents professionnels pour le secteur de la construction au Luxembourg. '+
-    'Tu rédiges des rapports clairs, structurés et professionnels en français, adaptés aux promoteurs immobiliers et chefs de chantier. '+
-    'Utilise des sections bien définies, une mise en forme claire avec des titres, et un ton formel mais lisible. '+
+    'RÈGLE ABSOLUE: tu ne rédiges QUE ce qui est mentionné dans les notes. Tu n\'inventes rien, tu n\'ajoutes pas de sections vides, pas de formules génériques, pas de contenu fictif. '+
+    'Si une information n\'est pas dans les notes, elle n\'apparaît pas dans le rapport. Sois concis et direct. '+
     'La date du rapport est le '+new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'})+'.';
 
-  var userMsg='Génère un '+typeLabel+' professionnel à partir de ces notes:\n\n'+
+  var userMsg='Transforme ces notes en '+typeLabel+' professionnel et concis:\n\n'+
     (chantierInfo?chantierInfo+'\n\n':'')+
     'NOTES:\n'+notes+'\n\n'+
-    'Le rapport doit être complet, bien structuré, prêt à imprimer. Inclus: titre, date, référence chantier, sections claires, points d\'action si pertinent.';
+    'IMPORTANT: couvre UNIQUEMENT les points mentionnés ci-dessus. Pas de sections vides, pas d\'ajouts. Titre, date, puis les points reformulés proprement. Court et précis.';
 
   var btn=document.getElementById('rapportGenBtn');
   btn.disabled=true; btn.textContent='⏳ Génération en cours…';
