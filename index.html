@@ -1336,60 +1336,11 @@ async function _idbPut(id,data){const db=await _idbOpen();return new Promise((re
 async function _idbGet(id){const db=await _idbOpen();return new Promise((res,rej)=>{const tx=db.transaction(_IDB_STORE,'readonly');const req=tx.objectStore(_IDB_STORE).get(id);req.onsuccess=e=>res(e.target.result);req.onerror=e=>rej(e);});}
 async function _idbDel(id){const db=await _idbOpen();return new Promise((res,rej)=>{const tx=db.transaction(_IDB_STORE,'readwrite');tx.objectStore(_IDB_STORE).delete(id);tx.oncomplete=()=>res();tx.onerror=e=>rej(e);});}
 
-// ── Firebase plan file storage — chunked, stored under user's own path ──
-// Path: chantierPro/users/{uid}/planFiles/{planId}/c0, c1, … + meta
-const _FB_CHUNK = 2000000; // 2M chars per chunk — safe well under any Firebase limit
-function _fbPlanPath(planId){ return 'chantierPro/users/'+(_adminUid||_uid)+'/planFiles/'+planId; }
-
-async function _fbSavePlanFile(planId, data){
-  if(!window._fbSet||!_uid) return;
-  try{
-    const n=Math.ceil(data.length/_FB_CHUNK);
-    await window._fbSet(_fbPlanPath(planId)+'/meta',{savedAt:Date.now(),n,len:data.length});
-    for(let i=0;i<n;i++){
-      await window._fbSet(_fbPlanPath(planId)+'/c'+i, data.slice(i*_FB_CHUNK,(i+1)*_FB_CHUNK));
-    }
-    showToast('☁ Plan synchronisé sur tous les appareils');
-  }catch(e){
-    console.error('Plan cloud sync failed',e);
-    // Plan already saved locally — works on this device, just not synced to cloud
-  }
-}
-
-function _fbReadNode(path,timeoutMs=15000){
-  return new Promise(res=>{
-    const timer=setTimeout(()=>{ console.warn('FB timeout:',path); res(null); },timeoutMs);
-    window._fbGet(path)
-      .then(d=>{ clearTimeout(timer); res(d??null); })
-      .catch(e=>{ clearTimeout(timer); console.error('FB read error:',path,e?.message); res(null); });
-  });
-}
-
-async function _fbLoadPlanFile(planId){
-  if(!window._fbGet||!_uid){ showToast('⚠ Non connecté'); return null; }
-  showToast('⏳ Recherche plan dans le cloud…');
-  const meta=await _fbReadNode(_fbPlanPath(planId)+'/meta',12000);
-  if(!meta){
-    showToast('⚠ Plan introuvable dans le cloud (meta manquant)');
-    return null;
-  }
-  const n=meta.n||1;
-  showToast('⏳ Chargement plan ('+n+' partie'+(n>1?'s':'')+')…');
-  const parts=[];
-  for(let i=0;i<n;i++){
-    if(n>1) showToast('⏳ Partie '+(i+1)+'/'+n+'…');
-    const chunk=await _fbReadNode(_fbPlanPath(planId)+'/c'+i,20000);
-    if(chunk===null){ showToast('⚠ Partie '+(i+1)+'/'+n+' introuvable'); return null; }
-    parts.push(chunk);
-  }
-  showToast('✅ Plan chargé');
-  return parts.join('');
-}
-
-function _fbDeletePlanFile(planId){
-  if(!window._fbSet||!_uid) return;
-  try{ window._fbSet(_fbPlanPath(planId), null); }catch(e){}
-}
+// ── Plan file storage: IndexedDB only (local per device) ──
+// Binary data is NOT sent to Firebase — it would clog the connection (MBs of base64).
+// Metadata (name, size, type, date) syncs via Firebase as part of main state.
+// On a different device, the plan list is visible but files must be re-uploaded locally.
+function _fbDeletePlanFile(planId){ /* no-op — kept for API compatibility */ }
 
 
 // Strip plan.data before pushing to Firebase main state
@@ -2360,7 +2311,6 @@ async function processAptPlanFiles(files,aptId,cid,pid){
       const dataUrl=ev.target.result;
       _idbPut(planId,dataUrl);
       apt.plans.push({id:planId,name:f.name,size:f.size,type:f.type,addedAt:new Date().toISOString()});
-      _fbSavePlanFile(planId,dataUrl);
       count++;
       if(count===valid.length){renderChecklist(cid,pid);pushToFirebase();showToast('📄 Plan ajouté');}
     };
@@ -2378,10 +2328,9 @@ async function viewAptPlan(aptId,cid,pid,idx){
   ann.style.display='none';frame.style.display='';
   let data=plan.data||(await _idbGet(plan.id));
   if(!data){
-    showToast('⏳ Chargement depuis le cloud…');
-    data=await _fbLoadPlanFile(plan.id);
-    if(data){ _idbPut(plan.id,data); }
-    else{ document.getElementById('planViewerOverlay').classList.remove('open'); showToast('⚠ Fichier introuvable (ID: '+plan.id.slice(-6)+')'); return; }
+    document.getElementById('planViewerOverlay').classList.remove('open');
+    showToast('📱 Ce fichier a été chargé sur un autre appareil. Veuillez le re-téléverser ici.');
+    return;
   }
   if(plan.type&&plan.type.startsWith('image/')){
     frame.style.display='none'; ann.style.display='flex';
@@ -2863,16 +2812,14 @@ function processPlanFiles(files,cid){
       const dataUrl=ev.target.result;
       // 1. Save locally (instant)
       _idbPut(planId,dataUrl);
-      // 2. Add to state & show immediately — no waiting for cloud
+      // 2. Add to state & show immediately
       ch.plans.push({id:planId,name:f.name,size:f.size,type:f.type,addedAt:new Date().toISOString(),pins:[]});
       count++;
       if(count===valid.length){
         render();
-        pushToFirebase(); // force save bypassing _isSyncing lock
+        pushToFirebase();
         showToast('📄 '+count+' plan'+(count>1?'s':'')+' ajouté'+(count>1?'s':''));
       }
-      // 3. Sync binary to Firebase in background (for other devices / mobile)
-      _fbSavePlanFile(planId,dataUrl);
     };
     reader.readAsDataURL(f);
   });
@@ -3024,14 +2971,9 @@ async function viewPlan(cid,idx){
   const zoomBtns=document.getElementById('zoomBtns');
   let data=plan.data||(await _idbGet(plan.id));
   if(!data){
-    showToast('⏳ Chargement depuis le cloud…');
-    data=await _fbLoadPlanFile(plan.id);
-    if(data){
-      _idbPut(plan.id,data); // cache locally for next time
-    } else {
-      document.getElementById('planViewerOverlay').classList.remove('open');
-      showToast('⚠ Fichier introuvable (ID: '+plan.id.slice(-6)+')');return;
-    }
+    document.getElementById('planViewerOverlay').classList.remove('open');
+    showToast('📱 Ce fichier a été chargé sur un autre appareil. Veuillez le re-téléverser ici.');
+    return;
   }
   if(isImg){
     frame.style.display='none';
@@ -3331,12 +3273,8 @@ async function downloadCurrentPlan(){
 async function downloadPlan(cid,idx){
   const plan=getChantier(cid)?.plans?.[idx];
   if(!plan)return;
-  let data=plan.data||(await _idbGet(plan.id));
-  if(!data){
-    showToast('⏳ Chargement depuis le cloud…');
-    data=await _fbLoadPlanFile(plan.id);
-  }
-  if(!data){showToast('⚠ Fichier introuvable');return;}
+  const data=plan.data||(await _idbGet(plan.id));
+  if(!data){showToast('📱 Fichier non disponible sur cet appareil.');return;}
   const a=document.createElement('a');a.href=data;a.download=plan.name;a.click();
 }
 function removePlan(cid,idx){
