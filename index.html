@@ -2362,7 +2362,7 @@ async function processAptPlanFiles(files,aptId,cid,pid){
       apt.plans.push({id:planId,name:f.name,size:f.size,type:f.type,addedAt:new Date().toISOString()});
       _fbSavePlanFile(planId,dataUrl);
       count++;
-      if(count===valid.length){autoSave();renderChecklist(cid,pid);showToast('📄 Plan ajouté');}
+      if(count===valid.length){renderChecklist(cid,pid);pushToFirebase();showToast('📄 Plan ajouté');}
     };
     reader.readAsDataURL(f);
   });
@@ -2866,8 +2866,12 @@ function processPlanFiles(files,cid){
       // 2. Add to state & show immediately — no waiting for cloud
       ch.plans.push({id:planId,name:f.name,size:f.size,type:f.type,addedAt:new Date().toISOString(),pins:[]});
       count++;
-      if(count===valid.length){autoSave();render();showToast('📄 '+count+' plan'+(count>1?'s':'')+' ajouté'+(count>1?'s':''));}
-      // 3. Sync to Firebase in background (for other devices / mobile)
+      if(count===valid.length){
+        render();
+        pushToFirebase(); // force save bypassing _isSyncing lock
+        showToast('📄 '+count+' plan'+(count>1?'s':'')+' ajouté'+(count>1?'s':''));
+      }
+      // 3. Sync binary to Firebase in background (for other devices / mobile)
       _fbSavePlanFile(planId,dataUrl);
     };
     reader.readAsDataURL(f);
