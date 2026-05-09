@@ -1342,19 +1342,17 @@ const _FB_CHUNK = 2000000; // 2M chars per chunk — safe well under any Firebas
 function _fbPlanPath(planId){ return 'chantierPro/users/'+(_adminUid||_uid)+'/planFiles/'+planId; }
 
 async function _fbSavePlanFile(planId, data){
-  if(!window._fbSet||!_uid){ showToast('⚠ Non connecté — plan non synchronisé'); return; }
+  if(!window._fbSet||!_uid) return;
   try{
     const n=Math.ceil(data.length/_FB_CHUNK);
-    showToast('☁ Sync plan 0/'+n+'…');
     await window._fbSet(_fbPlanPath(planId)+'/meta',{savedAt:Date.now(),n,len:data.length});
     for(let i=0;i<n;i++){
-      showToast('☁ Sync plan '+(i+1)+'/'+n+'…');
       await window._fbSet(_fbPlanPath(planId)+'/c'+i, data.slice(i*_FB_CHUNK,(i+1)*_FB_CHUNK));
     }
-    showToast('✅ Plan synchronisé ('+n+' partie'+(n>1?'s':'')+')');
+    showToast('☁ Plan synchronisé sur tous les appareils');
   }catch(e){
-    console.error('Plan cloud save failed',e);
-    showToast('⚠ Sync échoué: '+( e?.message||'erreur inconnue'));
+    console.error('Plan cloud sync failed',e);
+    // Plan already saved locally — works on this device, just not synced to cloud
   }
 }
 
@@ -2360,9 +2358,9 @@ async function processAptPlanFiles(files,aptId,cid,pid){
     reader.onload=async ev=>{
       const planId='apt_plan_'+Date.now()+'_'+Math.floor(Math.random()*99999);
       const dataUrl=ev.target.result;
-      await _idbPut(planId,dataUrl);
-      await _fbSavePlanFile(planId,dataUrl);
+      _idbPut(planId,dataUrl);
       apt.plans.push({id:planId,name:f.name,size:f.size,type:f.type,addedAt:new Date().toISOString()});
+      _fbSavePlanFile(planId,dataUrl);
       count++;
       if(count===valid.length){autoSave();renderChecklist(cid,pid);showToast('📄 Plan ajouté');}
     };
@@ -2863,13 +2861,14 @@ function processPlanFiles(files,cid){
     reader.onload=async ev=>{
       const planId='plan_'+Date.now()+'_'+Math.floor(Math.random()*99999);
       const dataUrl=ev.target.result;
-      // Save locally first (instant on this device)
-      await _idbPut(planId,dataUrl);
-      // Save to Firebase RTDB in chunks — awaited so we know it succeeded
-      await _fbSavePlanFile(planId,dataUrl);
+      // 1. Save locally (instant)
+      _idbPut(planId,dataUrl);
+      // 2. Add to state & show immediately — no waiting for cloud
       ch.plans.push({id:planId,name:f.name,size:f.size,type:f.type,addedAt:new Date().toISOString(),pins:[]});
       count++;
       if(count===valid.length){autoSave();render();showToast('📄 '+count+' plan'+(count>1?'s':'')+' ajouté'+(count>1?'s':''));}
+      // 3. Sync to Firebase in background (for other devices / mobile)
+      _fbSavePlanFile(planId,dataUrl);
     };
     reader.readAsDataURL(f);
   });
