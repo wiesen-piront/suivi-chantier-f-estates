@@ -93,7 +93,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
   .phase-grid{grid-template-columns:1fr!important;}
   /* AI Chat: full width bottom */
   #aiChatPanel{width:100vw!important;right:0!important;bottom:0!important;border-radius:16px 16px 0 0!important;max-height:75vh!important;}
-  #aiChatBtn{bottom:16px!important;right:16px!important;}
+  #aiChatBtn{bottom:16px;right:16px;}
   /* Reunions */
   .reunion-list{gap:.5rem;}
 }
@@ -5823,7 +5823,7 @@ async function _aiStreamRequest(key){
 <!-- Rapport print frame -->
 <div id="rapportPrintArea" style="display:none"></div>
 
-<button id="aiChatBtn" onclick="toggleAiChat()" title="Assistant IA">🤖</button>
+<button id="aiChatBtn" title="Assistant IA">🤖</button>
 <div id="aiChatPanel">
   <div class="ai-ch-header">
     <div style="font-size:20px">🤖</div>
