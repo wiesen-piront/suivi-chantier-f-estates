@@ -726,8 +726,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
   import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, get, onValue, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getStorage, ref as storageRef, uploadString, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
   const firebaseConfig={apiKey:"AIzaSyAunYOcn1sVJkS3UlBuOJsD1NS1ZPzk34o",authDomain:"chantier-98c12.firebaseapp.com",databaseURL:"https://chantier-98c12-default-rtdb.europe-west1.firebasedatabase.app",projectId:"chantier-98c12",storageBucket:"chantier-98c12.firebasestorage.app",messagingSenderId:"108133717293",appId:"1:108133717293:web:ea39231135d380ec766fa4"};
-  const app=initializeApp(firebaseConfig);const db=getDatabase(app);const auth=getAuth(app);
+  const app=initializeApp(firebaseConfig);const db=getDatabase(app);const auth=getAuth(app);const storage=getStorage(app);
+  window._fbStorage=storage;
+  window._storageRef=(path)=>storageRef(storage,path);
+  window._storageUpload=(path,data,meta)=>uploadString(storageRef(storage,path),data,'data_url',meta);
+  window._storageGetUrl=(path)=>getDownloadURL(storageRef(storage,path));
+  window._storageDelete=(path)=>deleteObject(storageRef(storage,path)).catch(()=>{});
   window._fbSet=(path,data)=>set(ref(db,path),data);
   window._fbGet=(path)=>get(ref(db,path)).then(snap=>snap.val());
   window._fbListen=(path,cb)=>onValue(ref(db,path),snap=>cb(snap.val()));
@@ -1391,6 +1397,33 @@ async function _fbLoadPlanFile(planId){
 function _fbDeletePlanFile(planId){
   if(!window._fbSet||!_uid) return;
   try{ window._fbSet(_fbPlanPath(planId), null); }catch(e){}
+}
+
+// ── Firebase Storage (new) — proper file storage, any size, works on all devices ──
+function _storagePlanPath(planId){ return 'planFiles/'+(_adminUid||_uid)+'/'+planId; }
+
+async function _storageSavePlanFile(planId, dataUrl, fileName){
+  if(!window._storageUpload||!_uid){ showToast('⚠ Non connecté — plan non synchronisé'); return null; }
+  try{
+    showToast('☁ Upload plan…');
+    const ext=fileName?('.'+fileName.split('.').pop()):'';
+    const meta={contentType:dataUrl.split(';')[0].replace('data:',''), customMetadata:{originalName:fileName||planId}};
+    await window._storageUpload(_storagePlanPath(planId), dataUrl, meta);
+    const url=await window._storageGetUrl(_storagePlanPath(planId));
+    showToast('✅ Plan synchronisé');
+    return url;
+  }catch(e){
+    console.error('Storage upload failed',e);
+    showToast('⚠ Upload échoué: '+(e?.message||'erreur inconnue'));
+    return null;
+  }
+}
+
+function _storageDeletePlanFile(planId){
+  if(!window._storageDelete||!_uid) return;
+  window._storageDelete(_storagePlanPath(planId));
+  // Also clean up old chunked data if present
+  _fbDeletePlanFile(planId);
 }
 
 // Strip plan.data before pushing to Firebase main state
@@ -2358,9 +2391,10 @@ async function processAptPlanFiles(files,aptId,cid,pid){
     const reader=new FileReader();
     reader.onload=async ev=>{
       const planId='apt_plan_'+Date.now()+'_'+Math.floor(Math.random()*99999);
-      await _idbPut(planId,ev.target.result);
-      _fbSavePlanFile(planId,ev.target.result);
-      apt.plans.push({id:planId,name:f.name,size:f.size,type:f.type,addedAt:new Date().toISOString()});
+      const dataUrl=ev.target.result;
+      await _idbPut(planId,dataUrl);
+      const storageUrl=await _storageSavePlanFile(planId,dataUrl,f.name);
+      apt.plans.push({id:planId,name:f.name,size:f.size,type:f.type,addedAt:new Date().toISOString(),storageUrl:storageUrl||null});
       count++;
       if(count===valid.length){autoSave();renderChecklist(cid,pid);showToast('📄 Plan ajouté');}
     };
@@ -2373,6 +2407,25 @@ async function viewAptPlan(aptId,cid,pid,idx){
   _viewerPlan=plan;_annAptMode=true;_annCid=cid;_annPlanIdx=idx;_annMode=false;
   document.getElementById('planViewerTitle').textContent=plan.name+' — '+apt.name;
   document.getElementById('planViewerOverlay').classList.add('open');
+  const frame=document.getElementById('planViewerFrame');
+  const ann=document.getElementById('planAnnContainer');
+  ann.style.display='none';frame.style.display='';
+
+  // Firebase Storage URL → use directly
+  if(plan.storageUrl){
+    if(plan.type&&plan.type.startsWith('image/')){
+      frame.style.display='none';ann.style.display='flex';
+      const img=document.getElementById('planAnnImg');
+      img.src=plan.storageUrl;
+      ann._pzInited=false;document.getElementById('zoomLabel').textContent='100%';
+      img.onload=()=>{_fitToContainer();renderPins(cid,idx);_initPanZoom();};
+    } else {
+      frame.src=plan.storageUrl;
+    }
+    return;
+  }
+
+  // Fallback for old plans
   let data=plan.data||(await _idbGet(plan.id));
   if(!data){
     showToast('⏳ Chargement depuis le cloud…');
@@ -2380,10 +2433,6 @@ async function viewAptPlan(aptId,cid,pid,idx){
     if(data){ _idbPut(plan.id,data); }
     else{ document.getElementById('planViewerOverlay').classList.remove('open'); showToast('⚠ Fichier introuvable (ID: '+plan.id.slice(-6)+')'); return; }
   }
-  const frame=document.getElementById('planViewerFrame');
-  const ann=document.getElementById('planAnnContainer');
-  ann.style.display='none';
-  frame.style.display='';
   if(plan.type&&plan.type.startsWith('image/')){
     frame.style.display='none'; ann.style.display='flex';
     const img=document.getElementById('planAnnImg');
@@ -2409,7 +2458,7 @@ function removeAptPlan(aptId,cid,pid,idx){
   if(!confirm('Supprimer ce plan ?'))return;
   const ph=getPhase(cid,pid);const apt=(ph.appartements||[]).find(a=>a.id===aptId);if(!apt)return;
   const plan=apt.plans.splice(idx,1)[0];
-  if(plan?.id){_idbDel(plan.id);_fbDeletePlanFile(plan.id);}
+  if(plan?.id){_idbDel(plan.id);_storageDeletePlanFile(plan.id);}
   autoSave();renderChecklist(cid,pid);showToast('🗑 Plan supprimé');
 }
 
@@ -2862,11 +2911,11 @@ function processPlanFiles(files,cid){
     reader.onload=async ev=>{
       const planId='plan_'+Date.now()+'_'+Math.floor(Math.random()*99999);
       const dataUrl=ev.target.result;
-      // Save locally (always fast)
+      // Save locally (instant access on this device)
       await _idbPut(planId,dataUrl);
-      // Save to Firebase (syncs to all colleagues)
-      _fbSavePlanFile(planId,dataUrl);
-      ch.plans.push({id:planId,name:f.name,size:f.size,type:f.type,addedAt:new Date().toISOString(),pins:[],synced:true});
+      // Upload to Firebase Storage → get public download URL (works on all devices)
+      const storageUrl=await _storageSavePlanFile(planId,dataUrl,f.name);
+      ch.plans.push({id:planId,name:f.name,size:f.size,type:f.type,addedAt:new Date().toISOString(),pins:[],storageUrl:storageUrl||null});
       count++;
       if(count===valid.length){autoSave();render();showToast('📄 '+count+' plan'+(count>1?'s':'')+' ajouté'+(count>1?'s':''));}
     };
@@ -3011,7 +3060,35 @@ async function viewPlan(cid,idx){
   _viewerPlan=plan;_annCid=cid;_annPlanIdx=idx;_annMode=false;
   document.getElementById('planViewerTitle').textContent=plan.name;
   document.getElementById('planViewerOverlay').classList.add('open');
-  // Load: local IndexedDB first (instant), then Firebase (synced from colleague)
+  // Load priority: 1) Firebase Storage URL (best, works on all devices), 2) local IndexedDB, 3) old chunked Firebase
+  const isImg=plan.type&&plan.type.startsWith('image/');
+  const frame=document.getElementById('planViewerFrame');
+  const ann=document.getElementById('planAnnContainer');
+  const annBtn=document.getElementById('annModeBtn');
+  const annHint=document.getElementById('annHint');
+  const zoomBtns=document.getElementById('zoomBtns');
+
+  // If we have a Firebase Storage URL → use it directly (no data loading needed)
+  if(plan.storageUrl){
+    if(isImg){
+      frame.style.display='none';
+      ann.style.display='flex';
+      annBtn.style.display='';annBtn.textContent='📍 Annoter';annBtn.classList.remove('active');
+      annHint.style.display='none';zoomBtns.style.display='flex';ann.classList.remove('ann-mode');
+      _annZoom=1;_annPanX=0;_annPanY=0;
+      const img=document.getElementById('planAnnImg');img.style.width='auto';
+      img.src=plan.storageUrl;ann._pzInited=false;
+      document.getElementById('zoomLabel').textContent='100%';
+      img.onload=()=>{_fitToContainer();renderPins(cid,idx);_initPanZoom();};
+    } else {
+      ann.style.display='none';frame.style.display='';
+      annBtn.style.display='none';annHint.style.display='none';zoomBtns.style.display='none';
+      frame.src=plan.storageUrl;
+    }
+    return;
+  }
+
+  // Fallback: load binary data (old plans without storageUrl)
   let data=plan.data||(await _idbGet(plan.id));
   if(!data){
     showToast('⏳ Chargement depuis le cloud…');
@@ -3023,12 +3100,6 @@ async function viewPlan(cid,idx){
       showToast('⚠ Fichier introuvable (ID: '+plan.id.slice(-6)+')');return;
     }
   }
-  const isImg=plan.type&&plan.type.startsWith('image/');
-  const frame=document.getElementById('planViewerFrame');
-  const ann=document.getElementById('planAnnContainer');
-  const annBtn=document.getElementById('annModeBtn');
-  const annHint=document.getElementById('annHint');
-  const zoomBtns=document.getElementById('zoomBtns');
   if(isImg){
     frame.style.display='none';
     ann.style.display='flex';
@@ -3327,6 +3398,11 @@ async function downloadCurrentPlan(){
 async function downloadPlan(cid,idx){
   const plan=getChantier(cid)?.plans?.[idx];
   if(!plan)return;
+  if(plan.storageUrl){
+    // Open storage URL directly — browser handles download
+    const a=document.createElement('a');a.href=plan.storageUrl;a.download=plan.name;a.target='_blank';a.click();
+    return;
+  }
   const data=plan.data||(await _idbGet(plan.id));
   if(!data){showToast('⚠ Fichier introuvable');return;}
   const a=document.createElement('a');a.href=data;a.download=plan.name;a.click();
@@ -3334,7 +3410,7 @@ async function downloadPlan(cid,idx){
 function removePlan(cid,idx){
   if(!confirm('Supprimer ce plan ?'))return;
   const plan=getChantier(cid).plans.splice(idx,1)[0];
-  if(plan?.id){ _idbDel(plan.id); _fbDeletePlanFile(plan.id); }
+  if(plan?.id){ _idbDel(plan.id); _storageDeletePlanFile(plan.id); }
   autoSave();render();showToast('🗑 Plan supprimé');
 }
 function formatFileSize(bytes){if(!bytes)return'';if(bytes<1024)return bytes+'B';if(bytes<1024*1024)return(bytes/1024).toFixed(0)+'KB';return(bytes/(1024*1024)).toFixed(1)+'MB';}
