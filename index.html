@@ -683,8 +683,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 .dash-alert-row{display:flex;align-items:center;gap:.5rem;padding:4px 0;font-size:13px;border-bottom:1px solid rgba(0,0,0,.05);}
 .dash-alert-row:last-child{border-bottom:none;}
 /* ══ AI CHAT ══ */
-#aiChatBtn{position:fixed;bottom:24px;right:24px;z-index:999;width:52px;height:52px;background:var(--accent);color:#fff;border:none;border-radius:50%;font-size:22px;cursor:pointer;box-shadow:0 4px 18px rgba(11,29,77,.38);transition:all .2s;display:none;align-items:center;justify-content:center;}
-#aiChatBtn:hover{transform:scale(1.09);background:var(--accent2);}
+#aiChatBtn{position:fixed;bottom:24px;right:24px;z-index:999;width:52px;height:52px;background:var(--accent);color:#fff;border:none;border-radius:50%;font-size:22px;cursor:grab;box-shadow:0 4px 18px rgba(11,29,77,.38);transition:box-shadow .2s,background .2s;display:none;align-items:center;justify-content:center;user-select:none;touch-action:none;}
+#aiChatBtn:hover{background:var(--accent2);}
+#aiChatBtn.dragging{cursor:grabbing;box-shadow:0 8px 32px rgba(11,29,77,.5);transform:scale(1.08);}
 #aiChatBtn.shown{display:flex;}
 #aiChatPanel{position:fixed;bottom:86px;right:24px;z-index:998;width:370px;max-width:calc(100vw - 32px);height:530px;max-height:calc(100vh - 110px);background:#fff;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.18);border:1px solid var(--paper3);flex-direction:column;overflow:hidden;display:none;}
 #aiChatPanel.open{display:flex;}
@@ -5426,7 +5427,60 @@ function imprimerRapport(){
 
 function initAiChat(){
   var btn=document.getElementById('aiChatBtn');
-  if(btn)btn.classList.add('shown');
+  if(btn){ btn.classList.add('shown'); _initAiBtnDrag(btn); }
+}
+
+function _initAiBtnDrag(btn){
+  var dragging=false, startX, startY, startRight, startBottom, moved=false;
+  var saved=JSON.parse(localStorage.getItem('fe_ai_btn_pos')||'null');
+  if(saved){ btn.style.right=saved.right+'px'; btn.style.bottom=saved.bottom+'px'; btn.style.left='auto'; btn.style.top='auto'; }
+
+  function getPos(){ return {right:parseFloat(btn.style.right)||24, bottom:parseFloat(btn.style.bottom)||24}; }
+
+  function onDown(e){
+    if(e.type==='touchstart'&&e.touches.length!==1) return;
+    dragging=true; moved=false;
+    btn.classList.add('dragging');
+    var cx=e.type==='touchstart'?e.touches[0].clientX:e.clientX;
+    var cy=e.type==='touchstart'?e.touches[0].clientY:e.clientY;
+    startX=cx; startY=cy;
+    var p=getPos(); startRight=p.right; startBottom=p.bottom;
+    e.preventDefault();
+  }
+  function onMove(e){
+    if(!dragging) return;
+    var cx=e.type==='touchmove'?e.touches[0].clientX:e.clientX;
+    var cy=e.type==='touchmove'?e.touches[0].clientY:e.clientY;
+    var dx=cx-startX; var dy=cy-startY;
+    if(Math.abs(dx)+Math.abs(dy)>4) moved=true;
+    var newRight=Math.max(8, Math.min(window.innerWidth-60, startRight-dx));
+    var newBottom=Math.max(8, Math.min(window.innerHeight-60, startBottom-dy));
+    btn.style.right=newRight+'px'; btn.style.bottom=newBottom+'px';
+    btn.style.left='auto'; btn.style.top='auto';
+    e.preventDefault();
+  }
+  function onUp(e){
+    if(!dragging) return;
+    dragging=false;
+    btn.classList.remove('dragging');
+    if(moved){
+      var p=getPos();
+      localStorage.setItem('fe_ai_btn_pos',JSON.stringify(p));
+      // Also reposition chat panel
+      var panel=document.getElementById('aiChatPanel');
+      if(panel){ panel.style.right=p.right+'px'; panel.style.bottom=(p.bottom+62)+'px'; }
+      e.preventDefault();
+    }
+  }
+  btn.addEventListener('mousedown',onDown);
+  btn.addEventListener('touchstart',onDown,{passive:false});
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('touchmove',onMove,{passive:false});
+  document.addEventListener('mouseup',onUp);
+  document.addEventListener('touchend',onUp);
+
+  // Only open chat if not dragged
+  btn.onclick=function(e){ if(moved){moved=false;return;} toggleAiChat(); };
 }
 
 function toggleAiChat(){
