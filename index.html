@@ -5542,7 +5542,7 @@ async function analyserPhoto(){
   var typeLabels={defaut:'constat général',malfacon:'rapport de malfaçon / défaut',avancement:'rapport d\'avancement des travaux',securite:'rapport de sécurité chantier',reception:'procès-verbal de contrôle / réception'};
   var dateStr=new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
 
-  var systemPrompt='Tu es un expert en inspection de chantiers de construction. Tu rédiges des rapports professionnels courts et directs en français. RÈGLES STRICTES: 1) Max 250 mots. 2) Pas de tableaux. 3) Pas de sections vides. 4) Pas de [À compléter]. 5) Uniquement ce qui est visible sur les photos et dans les notes. 6) PAS de Markdown: pas de **, pas de ##, pas de *, pas de ---, texte brut uniquement. 7) Format: titre court en majuscules, date sur la ligne suivante, puis 2-3 paragraphes.';
+  var systemPrompt='Tu es un expert en inspection de chantiers de construction. Tu rédiges des rapports professionnels courts en français SANS AUCUN FORMATAGE MARKDOWN. INTERDIT ABSOLU: **, *, ##, #, ---, _. UNIQUEMENT du texte brut. Format: TITRE EN MAJUSCULES, saut de ligne, date, saut de ligne, puis 2-3 courts paragraphes. Max 200 mots. Seulement ce qui est visible sur les photos et dans les notes.';
   var userText='Rédige un '+(typeLabels[type]||'constat général')+' basé sur '+(+_photoRapportArr.length>1?'ces '+_photoRapportArr.length+' photos':'cette photo')+' de chantier.\nDate: '+dateStr+(chantierName?'\nChantier: '+chantierName:'')+(notes?'\nObservations: '+notes:'');
 
   // Build content array with all images
@@ -5565,7 +5565,10 @@ async function analyserPhoto(){
     });
     var data=await resp.json();
     if(data.error){ out.value='❌ Erreur: '+data.error.message; showToast('❌ Erreur API'); btn.disabled=false; btn.textContent='✨ Analyser avec l\'IA'; return; }
-    out.value=data.content[0].text;
+    var txt=data.content[0].text;
+    // Strip any remaining markdown
+    txt=txt.replace(/#{1,6}\s*/g,'').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/\*([^*]+)\*/g,'$1').replace(/^---+$/mg,'').replace(/_([^_]+)_/g,'$1');
+    out.value=txt.trim();
     document.getElementById('photoShareBtns').style.display='flex';
     showToast('✅ Rapport généré');
   }catch(e){ out.value='❌ Erreur: '+e.message; showToast('❌ Erreur'); }
@@ -5643,7 +5646,9 @@ function sendEmailGmail(){
 function sendEmailClient(){
   var to=document.getElementById('emailTo').value.trim();
   var subject=document.getElementById('emailSubject').value.trim();
-  window.location.href='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(_emailModalContent.slice(0,1800));
+  var a=document.createElement('a');
+  a.href='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(_emailModalContent.slice(0,1800));
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
   closeEmailModal();
 }
 function copyEmailText(){
