@@ -3593,12 +3593,13 @@ function saveSTEdit(){
   openSTManage();
 }
 function deleteSTConfirm(id){
-  const st=state.sousTraitants.find(s=>s.id===id);
-  if(!st)return;
-  state.sousTraitants=state.sousTraitants.filter(s=>s.id!==id);
-  state.chantiers.forEach(c=>c.phases.forEach(ph=>ph.steps.forEach(s=>{s.assignedSTs=(s.assignedSTs||[]).filter(sid=>sid!==id);})));
-  closeModal('stEditModal');autoSave();render();
-  showToast('🗑 '+st.name+' supprimé');
+  const sid=String(id);
+  const st=state.sousTraitants.find(s=>String(s.id)===sid);
+  state.sousTraitants=state.sousTraitants.filter(s=>String(s.id)!==sid);
+  state.chantiers.forEach(c=>c.phases.forEach(ph=>ph.steps.forEach(s=>{s.assignedSTs=(s.assignedSTs||[]).filter(aid=>String(aid)!==sid);})));
+  closeModal('stManageModal');closeModal('stEditModal');
+  autoSave();render();
+  showToast('🗑 '+(st?st.name:'Sous-traitant')+' supprimé');
   openSTManage();
 }
 
