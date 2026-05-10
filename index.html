@@ -1425,7 +1425,8 @@ function migrateData(data){
       phases:(c.phases||[]).map(ph=>({
         ...ph,
         notes:ph.notes||'',
-        steps:(ph.steps||[]).map(s=>({ name:s.name||'', remark:s.remark||'', deblocage:s.deblocage||0, phase:s.phase||'', prereqs:s.prereqs||[], checked:s.checked||[], note:s.note||'', open:s.open||false, done:s.done||false, inprogress:s.inprogress||false, doneAt:s.doneAt||null, startedAt:s.startedAt||null, assignedSTs:s.assignedSTs||[], photos:s.photos||[], journal:s.journal||[] }))
+        steps:(ph.steps||[]).map(s=>({ name:s.name||'', remark:s.remark||'', deblocage:s.deblocage||0, phase:s.phase||'', prereqs:s.prereqs||[], checked:s.checked||[], note:s.note||'', open:s.open||false, done:s.done||false, inprogress:s.inprogress||false, doneAt:s.doneAt||null, startedAt:s.startedAt||null, assignedSTs:s.assignedSTs||[], photos:s.photos||[], journal:s.journal||[] })),
+        appartements:(ph.appartements||[]).map(a=>({...a, steps:(a.steps||[]).map(s=>({ name:s.name||'', remark:s.remark||'', deblocage:s.deblocage||0, phase:s.phase||'', prereqs:s.prereqs||[], checked:s.checked||[], note:s.note||'', open:s.open||false, done:s.done||false, inprogress:s.inprogress||false, doneAt:s.doneAt||null, startedAt:s.startedAt||null, assignedSTs:s.assignedSTs||[], photos:s.photos||[], journal:s.journal||[] }))}))
       }))
     }));
   }
@@ -1450,7 +1451,7 @@ function getProgress(ph){
   const done=ph.steps.filter(s=>s.done).length;
   return {done,total:ph.steps.length,pct:ph.steps.length?Math.round(done/ph.steps.length*100):0};
 }
-function getStepStatus(ph,i){ const s=ph.steps[i]; if(s.done)return'done'; if(s.inprogress)return'inprogress'; if(!s.prereqs.length)return'can'; return s.checked.filter(Boolean).length<s.checked.length?'blocked':'can'; }
+function getStepStatus(ph,i){ const s=ph.steps[i]; if(!s)return'can'; if(s.done)return'done'; if(s.inprogress)return'inprogress'; const prereqs=s.prereqs||[]; const checked=s.checked||[]; if(!prereqs.length)return'can'; return checked.filter(Boolean).length<prereqs.length?'blocked':'can'; }
 function statusLabel(st){ return{done:'✓ Terminé',can:'Peut démarrer',blocked:'Ne peut pas démarrer',inprogress:'En cours'}[st]; }
 function statusBadge(st){ return{done:'badge-done',can:'badge-can',blocked:'badge-blocked',inprogress:'badge-progress'}[st]; }
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -2054,9 +2055,12 @@ function getAptProgress(apt){
 
 function getAptStepStatus(apt,i){
   const s=apt.steps[i];
+  if(!s) return 'can';
   if(s.done) return 'done';
   if(s.inprogress) return 'inprogress';
-  const allPrereqsDone=s.prereqs.every((_,pi)=>s.checked[pi]);
+  const prereqs=s.prereqs||[];
+  const checked=s.checked||[];
+  const allPrereqsDone=prereqs.every((_,pi)=>checked[pi]);
   if(allPrereqsDone) return 'can';
   return 'blocked';
 }
