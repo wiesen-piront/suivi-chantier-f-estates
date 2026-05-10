@@ -826,6 +826,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
       <div class="nav-icon" style="background:#fdf0fb">📸</div>
       <div class="nav-info"><div class="nav-name">Rapport Photo IA</div><div class="nav-meta">Analyser & rédiger</div></div>
     </div>
+    <div class="nav-item" id="navDocs" onclick="showDocuments();closeSidebarMobile()">
+      <div class="nav-icon" style="background:#e8f5e9">📁</div>
+      <div class="nav-info"><div class="nav-name">Mes Documents</div><div class="nav-meta" id="docsNavMeta">—</div></div>
+    </div>
     <div class="sidebar-title" style="margin-top:1rem">Mes chantiers</div>
     <div id="chantierList"></div>
     <button class="add-btn" id="addChantierBtn" onclick="openAddChantierModal()">＋ Nouveau chantier</button>
@@ -1376,7 +1380,7 @@ function saveNow(){ pushToFirebase(); showToast('💾 Sauvegardé'); }
 function pushToFirebase(){
   if(!window._fbSet||!_uid){setSyncStatus('offline');return;}
   setSyncStatus('syncing');
-  const payload={chantiers:_stripPlanData(state.chantiers),sousTraitants:state.sousTraitants,profile:state.profile,plannings:state.plannings||[],updatedAt:Date.now()};
+  const payload={chantiers:_stripPlanData(state.chantiers),sousTraitants:state.sousTraitants,profile:state.profile,plannings:state.plannings||[],documents:(state.documents||[]).map(function(d){var{photos,...rest}=d;return rest;}),updatedAt:Date.now()};
   window._fbSet(getFbPath(),payload).then(()=>setSyncStatus('synced')).catch(()=>setSyncStatus('offline'));
 }
 function autoSave(){ if(!_isSyncing) pushToFirebase(); }
@@ -1392,6 +1396,7 @@ function startFirebaseListener(){
     state.sousTraitants=data.sousTraitants||[];
     state.profile=data.profile||{logo:null,companyName:''};
     // Normalize plannings: fix parentId null→0 (Firebase drops null values)
+    state.documents=data.documents||[];
     state.plannings=(data.plannings||[]).map(pl=>({
       ...pl,
       tasks:(pl.tasks||[]).map(t=>({...t,parentId:t.parentId!=null?t.parentId:0}))
@@ -1497,6 +1502,10 @@ function renderSidebar(){
   const pm=document.getElementById('planningNavMeta');
   if(pm){ const pl=state.plannings||[]; if(!pl.length){pm.textContent='—';} else{ const palerts=getPlanningAlerts(); pm.innerHTML=palerts.length?`<span style="color:var(--red);font-weight:600">⚠️ ${palerts.length} alerte${palerts.length>1?'s':''}</span>`:(pl.reduce((a,p)=>a+(p.tasks||[]).length,0)+' tâches'); } }
   _updateProbMeta();
+  const navDocs=document.getElementById('navDocs');
+  if(navDocs) navDocs.classList.toggle('active',state.currentView==='documents');
+  const docsM=document.getElementById('docsNavMeta');
+  if(docsM){ const dc=(state.documents||[]).length; docsM.textContent=dc===0?'—':dc+' document'+(dc>1?'s':''); }
   const td=state.chantiers.reduce((a,c)=>a+c.phases.reduce((b,p)=>b+p.steps.filter(s=>s.done).length,0),0);
   const tt=state.chantiers.reduce((a,c)=>a+c.phases.reduce((b,p)=>b+p.steps.length,0),0);
   document.getElementById('dashMeta').textContent=state.chantiers.length===0?'Aucun chantier':`${state.chantiers.length} chantier${state.chantiers.length>1?'s':''} · ${td}/${tt}`;
@@ -3994,7 +4003,7 @@ function closeSidebarMobile(){
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 function showToast(msg){ const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500); }
 
-function render(){ updateHeaderLogo(); renderSidebar(); if(state.currentView==='dashboard')renderDashboard(); else if(state.currentView==='project')renderChecklist(state.currentChantierId,state.currentPhaseId); else if(state.currentView==='planning')renderPlanningView(); }
+function render(){ updateHeaderLogo(); renderSidebar(); if(state.currentView==='dashboard')renderDashboard(); else if(state.currentView==='project')renderChecklist(state.currentChantierId,state.currentPhaseId); else if(state.currentView==='planning')renderPlanningView(); else if(state.currentView==='documents')renderDocumentsView(); }
 
 // Modal close handlers
 ['addChantierModal','addPhaseModal','addAptModal','bulkRenameAptModal','renameModal','editStepModal','profileModal','stManageModal','stEditModal','stPickerModal','teamModal','workerModal'].forEach(id=>{ document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);}); });
@@ -5419,7 +5428,10 @@ async function genererRapport(){
 
 function imprimerRapport(){
   var content=document.getElementById('rapportOutput').textContent;
+  var typeLabel=document.getElementById('rapportType').options[document.getElementById('rapportType').selectedIndex]?.text||'Rapport';
   var chantierName=document.getElementById('rapportChantier').options[document.getElementById('rapportChantier').selectedIndex]?.text||'';
+  if(chantierName==='— Tous les chantiers —') chantierName='';
+  _saveDocument({type:'rapport',typeLabel:typeLabel,chantierName:chantierName,content:content,photos:[]});
   var w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rapport</title><style>
     body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:0 40px;color:#111;line-height:1.7;font-size:13pt;}
@@ -5439,19 +5451,14 @@ function imprimerRapport(){
 // ════════════════════════════════════════
 //  PHOTO RAPPORT IA
 // ════════════════════════════════════════
-var _photoRapportData=null; // base64 data URL
+var _photoRapportArr=[]; // array of base64 data URLs
 
 function openPhotoRapport(){
-  // Populate chantier select
   var sel=document.getElementById('photoChantierSel');
   sel.innerHTML='<option value="">— Personnalisé —</option>';
   state.chantiers.forEach(function(c){ sel.innerHTML+='<option value="'+c.id+'">'+escHtml(c.name)+'</option>'; });
-  // Reset form
-  _photoRapportData=null;
-  document.getElementById('photoThumb').style.display='none';
-  document.getElementById('photoDropLabel').style.display='flex';
-  document.getElementById('photoRemoveBtn').style.display='none';
-  document.getElementById('photoDropZone').style.borderColor='#c3b0f0';
+  _photoRapportArr=[];
+  _renderPhotoGrid();
   document.getElementById('photoRapportType').value='defaut';
   document.getElementById('photoChantierSel').value='';
   document.getElementById('photoCustomName').value='';
@@ -5468,32 +5475,48 @@ function closePhotoRapport(){
   document.getElementById('photoRapportOverlay').style.display='none';
 }
 
-function onPhotoFileSelected(e){
-  var f=e.target.files[0]||e.dataTransfer?.files[0]; if(!f)return;
-  if(!f.type.startsWith('image/')){ showToast('❌ Fichier non supporté'); return; }
-  if(f.size>10*1024*1024){ showToast('❌ Image trop lourde (max 10 Mo)'); return; }
-  var reader=new FileReader();
-  reader.onload=function(ev){
-    _photoRapportData=ev.target.result;
-    var thumb=document.getElementById('photoThumb');
-    thumb.style.backgroundImage='url('+_photoRapportData+')';
-    thumb.style.display='block';
-    document.getElementById('photoDropLabel').style.display='none';
-    document.getElementById('photoRemoveBtn').style.display='';
-    document.getElementById('photoDropZone').style.borderColor='#7b2ff7';
-    document.getElementById('photoDropZone').style.borderStyle='solid';
-  };
-  reader.readAsDataURL(f);
-  e.target.value='';
+function _renderPhotoGrid(){
+  var grid=document.getElementById('photoThumbGrid');
+  var label=document.getElementById('photoDropLabel');
+  var addMore=document.getElementById('photoAddMoreWrap');
+  var zone=document.getElementById('photoDropZone');
+  if(!_photoRapportArr.length){
+    grid.style.display='none'; label.style.display='flex';
+    addMore.style.display='none';
+    zone.style.borderColor='#c3b0f0'; zone.style.borderStyle='dashed';
+    return;
+  }
+  label.style.display='none'; grid.style.display='flex';
+  addMore.style.display=''; zone.style.borderColor='#7b2ff7'; zone.style.borderStyle='solid';
+  grid.innerHTML=_photoRapportArr.map(function(src,i){
+    return '<div style="position:relative;width:72px;height:72px;flex-shrink:0;border-radius:7px;overflow:hidden;border:2px solid #c3b0f0">'+
+      '<img src="'+src+'" style="width:100%;height:100%;object-fit:cover">'+
+      '<button onclick="event.stopPropagation();_removePhotoAt('+i+')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);border:none;color:#fff;width:18px;height:18px;border-radius:50%;cursor:pointer;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center">×</button>'+
+    '</div>';
+  }).join('');
 }
 
-function removePhoto(){
-  _photoRapportData=null;
-  document.getElementById('photoThumb').style.display='none';
-  document.getElementById('photoDropLabel').style.display='flex';
-  document.getElementById('photoRemoveBtn').style.display='none';
-  document.getElementById('photoDropZone').style.borderColor='#c3b0f0';
-  document.getElementById('photoDropZone').style.borderStyle='dashed';
+function _removePhotoAt(i){
+  _photoRapportArr.splice(i,1);
+  _renderPhotoGrid();
+}
+
+function onPhotoFilesSelected(e){
+  var files=Array.from(e.target.files||[]);
+  var toLoad=files.filter(function(f){ return f.type.startsWith('image/'); });
+  if(!toLoad.length){ showToast('❌ Aucune image valide'); return; }
+  var loaded=0;
+  toLoad.forEach(function(f){
+    if(f.size>15*1024*1024){ showToast('⚠ '+f.name+' ignoré (> 15 Mo)'); loaded++; if(loaded===toLoad.length)_renderPhotoGrid(); return; }
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      _photoRapportArr.push(ev.target.result);
+      loaded++;
+      if(loaded===toLoad.length){ _renderPhotoGrid(); showToast('📸 '+_photoRapportArr.length+' photo'+(+_photoRapportArr.length>1?'s':'')+' chargée'+(+_photoRapportArr.length>1?'s':'')); }
+    };
+    reader.readAsDataURL(f);
+  });
+  e.target.value='';
 }
 
 function onPhotoChantierChange(){
@@ -5501,72 +5524,70 @@ function onPhotoChantierChange(){
   document.getElementById('photoCustomNameWrap').style.display=val?'none':'';
 }
 
-async function analyserPhoto(){
-  var key=getAiKey();
-  if(!key){ showToast('❌ Clé API manquante — cliquez sur 🔑 dans le chat IA'); return; }
-  if(!_photoRapportData){ showToast('❌ Veuillez sélectionner une photo'); return; }
-
-  var type=document.getElementById('photoRapportType').value;
+function _getPhotoChantierName(){
   var chantierVal=document.getElementById('photoChantierSel').value;
   var customName=document.getElementById('photoCustomName').value.trim();
-  var notes=document.getElementById('photoNotes').value.trim();
-  var chantierName='';
-  if(chantierVal){ var cx=state.chantiers.find(function(c){return String(c.id)===String(chantierVal);}); chantierName=cx?cx.name:''; }
-  else if(customName){ chantierName=customName; }
+  if(chantierVal){ var cx=state.chantiers.find(function(c){return String(c.id)===String(chantierVal);}); return cx?cx.name:''; }
+  return customName;
+}
 
+async function analyserPhoto(){
+  var key=getAiKey();
+  if(!key){ showToast('❌ Clé API manquante'); return; }
+  if(!_photoRapportArr.length){ showToast('❌ Veuillez sélectionner au moins une photo'); return; }
+
+  var type=document.getElementById('photoRapportType').value;
+  var notes=document.getElementById('photoNotes').value.trim();
+  var chantierName=_getPhotoChantierName();
   var typeLabels={defaut:'constat général',malfacon:'rapport de malfaçon / défaut',avancement:'rapport d\'avancement des travaux',securite:'rapport de sécurité chantier',reception:'procès-verbal de contrôle / réception'};
   var dateStr=new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
 
-  var systemPrompt='Tu es un expert en inspection de chantiers de construction. Tu rédiges des rapports professionnels courts et directs en français. RÈGLES STRICTES: 1) Max 200 mots. 2) Pas de tableaux. 3) Pas de sections vides. 4) Pas de [À compléter]. 5) Uniquement ce qui est visible sur la photo et dans les notes. 6) Format: titre court, date, puis 2-3 paragraphes.';
-  var userText='Rédige un '+( typeLabels[type]||'constat général')+' basé sur cette photo de chantier.\nDate: '+dateStr+(chantierName?'\nChantier: '+chantierName:'')+(notes?'\nObservations: '+notes:'');
+  var systemPrompt='Tu es un expert en inspection de chantiers de construction. Tu rédiges des rapports professionnels courts et directs en français. RÈGLES STRICTES: 1) Max 250 mots. 2) Pas de tableaux. 3) Pas de sections vides. 4) Pas de [À compléter]. 5) Uniquement ce qui est visible sur les photos et dans les notes. 6) Format: titre court, date, puis 2-3 paragraphes.';
+  var userText='Rédige un '+(typeLabels[type]||'constat général')+' basé sur '+(+_photoRapportArr.length>1?'ces '+_photoRapportArr.length+' photos':'cette photo')+' de chantier.\nDate: '+dateStr+(chantierName?'\nChantier: '+chantierName:'')+(notes?'\nObservations: '+notes:'');
 
-  // Extract base64
-  var parts=_photoRapportData.split(',');
-  var mime=parts[0].match(/:(.*?);/)[1];
-  var b64=parts[1];
+  // Build content array with all images
+  var contentArr=_photoRapportArr.map(function(src){
+    var parts=src.split(','); var mime=parts[0].match(/:(.*?);/)[1]; var b64=parts[1];
+    return {type:'image',source:{type:'base64',media_type:mime,data:b64}};
+  });
+  contentArr.push({type:'text',text:userText});
 
   var btn=document.getElementById('photoAnalyseBtn');
   var out=document.getElementById('photoRapportOutput');
   btn.disabled=true; btn.textContent='⏳ Analyse en cours…';
-  out.value='';
-  document.getElementById('photoShareBtns').style.display='none';
+  out.value=''; document.getElementById('photoShareBtns').style.display='none';
 
   try{
     var resp=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-opus-4-5',
-        max_tokens:600,
-        system:systemPrompt,
-        messages:[{role:'user',content:[
-          {type:'image',source:{type:'base64',media_type:mime,data:b64}},
-          {type:'text',text:userText}
-        ]}]
-      })
+      body:JSON.stringify({model:'claude-opus-4-5',max_tokens:700,system:systemPrompt,messages:[{role:'user',content:contentArr}]})
     });
     var data=await resp.json();
-    if(data.error){ out.value='❌ Erreur: '+data.error.message; showToast('❌ Erreur API'); return; }
+    if(data.error){ out.value='❌ Erreur: '+data.error.message; showToast('❌ Erreur API'); btn.disabled=false; btn.textContent='✨ Analyser avec l\'IA'; return; }
     out.value=data.content[0].text;
     document.getElementById('photoShareBtns').style.display='flex';
     showToast('✅ Rapport généré');
-  }catch(e){
-    out.value='❌ Erreur de connexion: '+e.message;
-    showToast('❌ Erreur');
-  }
+  }catch(e){ out.value='❌ Erreur: '+e.message; showToast('❌ Erreur'); }
   btn.disabled=false; btn.textContent='✨ Analyser avec l\'IA';
+}
+
+function _getPhotoRapportMeta(){
+  var type=document.getElementById('photoRapportType').value;
+  var typeLabels={defaut:'Constat général',malfacon:'Malfaçon / Défaut',avancement:'Avancement travaux',securite:'Sécurité chantier',reception:'Contrôle / Réception'};
+  return {type:type,typeLabel:typeLabels[type]||'Rapport',chantierName:_getPhotoChantierName()};
 }
 
 function imprimerPhotoRapport(){
   var content=document.getElementById('photoRapportOutput').value;
-  var chantierVal=document.getElementById('photoChantierSel').value;
-  var customName=document.getElementById('photoCustomName').value.trim();
-  var chantierName='';
-  if(chantierVal){ var cx=state.chantiers.find(function(c){return String(c.id)===String(chantierVal);}); chantierName=cx?cx.name:''; }
-  else chantierName=customName;
-  var photoSrc=_photoRapportData||'';
+  if(!content.trim()){ showToast('❌ Rapport vide'); return; }
+  var meta=_getPhotoRapportMeta();
+  // Save to documents
+  _saveDocument({type:'photo',typeLabel:meta.typeLabel,chantierName:meta.chantierName,content:content,photos:_photoRapportArr.slice()});
+  // Print
+  var photosHtml=_photoRapportArr.map(function(src){ return '<div class="photo-block"><img src="'+src+'"></div>'; }).join('');
   var w=window.open('','_blank');
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rapport Photo</title><style>body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:0 40px;color:#111;line-height:1.7;font-size:12pt;}.photo-block{text-align:center;margin:20px 0;}.photo-block img{max-width:100%;max-height:320px;border-radius:8px;border:1px solid #ddd;}.footer{margin-top:60px;border-top:1px solid #ccc;padding-top:10px;font-size:9pt;color:#888;text-align:center;}@media print{body{margin:20px;padding:0;}}</style></head><body>'+(photoSrc?'<div class="photo-block"><img src="'+photoSrc+'"></div>':'')+'<pre style="white-space:pre-wrap;font-family:Georgia,serif;font-size:12pt;line-height:1.7">'+content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre><div class="footer">F Estates · Rapport Photo · '+new Date().toLocaleDateString('fr-FR')+(chantierName?' · '+chantierName:'')+'</div><script>window.onload=function(){window.print();}<\/script></body></html>');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rapport Photo</title><style>body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:0 40px;color:#111;line-height:1.7;font-size:12pt;}.photo-block{text-align:center;margin:16px 0;}.photo-block img{max-width:100%;max-height:280px;border-radius:8px;border:1px solid #ddd;}.photo-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:16px 0;}.photo-grid .photo-block{margin:0;}.footer{margin-top:60px;border-top:1px solid #ccc;padding-top:10px;font-size:9pt;color:#888;text-align:center;}@media print{body{margin:20px;padding:0;}}</style></head><body>'+(+_photoRapportArr.length>1?'<div class="photo-grid">'+photosHtml+'</div>':photosHtml)+'<pre style="white-space:pre-wrap;font-family:Georgia,serif;font-size:12pt;line-height:1.7">'+content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre><div class="footer">F Estates · '+meta.typeLabel+' · '+new Date().toLocaleDateString('fr-FR')+(meta.chantierName?' · '+meta.chantierName:'')+'</div><script>window.onload=function(){window.print();}<\/script></body></html>');
   w.document.close();
 }
 
@@ -5579,8 +5600,99 @@ function partagerWhatsApp(){
 function partagerEmail(){
   var content=document.getElementById('photoRapportOutput').value;
   if(!content.trim()){ showToast('❌ Rapport vide'); return; }
-  var subject='Rapport chantier — '+new Date().toLocaleDateString('fr-FR');
+  var meta=_getPhotoRapportMeta();
+  var subject=meta.typeLabel+(meta.chantierName?' — '+meta.chantierName:'')+' · '+new Date().toLocaleDateString('fr-FR');
   window.location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(content);
+}
+
+// ════════════════════════════════════════
+//  DOCUMENTS LIBRARY
+// ════════════════════════════════════════
+function _saveDocument(doc){
+  if(!state.documents) state.documents=[];
+  // Store photos only in localStorage (too big for Firebase)
+  var docId='doc_'+Date.now()+'_'+Math.floor(Math.random()*9999);
+  var photos=doc.photos||[];
+  // Save photos to localStorage keyed by docId
+  try{ if(photos.length) localStorage.setItem('fe_docphotos_'+docId, JSON.stringify(photos)); }catch(e){}
+  var entry={id:docId,date:new Date().toISOString(),type:doc.type||'rapport',typeLabel:doc.typeLabel||'Rapport',chantierName:doc.chantierName||'',content:doc.content||'',photoCount:photos.length};
+  state.documents.unshift(entry);
+  if(state.documents.length>200) state.documents=state.documents.slice(0,200);
+  autoSave();
+  var docsEl=document.getElementById('docsNavMeta');
+  if(docsEl) docsEl.textContent=state.documents.length+' document'+(state.documents.length>1?'s':'');
+  showToast('📁 Sauvegardé dans Mes Documents');
+}
+
+function showDocuments(){
+  state.currentView='documents';
+  state.currentChantierId=null; state.currentPhaseId=null;
+  render();
+}
+
+function renderDocumentsView(){
+  var docs=state.documents||[];
+  var m=document.getElementById('mainContent');
+  var cards=docs.length===0
+    ?'<div class="empty-state"><div class="es-icon">📁</div><h3>Aucun document</h3><p>Les rapports imprimés apparaîtront ici automatiquement</p></div>'
+    :docs.map(function(doc){
+      var d=new Date(doc.date);
+      var dateStr=d.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+      var timeStr=d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      var icon=doc.type==='photo'?'📸':'📝';
+      var photos=[];
+      try{ var p=localStorage.getItem('fe_docphotos_'+doc.id); if(p) photos=JSON.parse(p); }catch(e){}
+      var firstPhoto=photos[0]||'';
+      return '<div style="background:#fff;border-radius:12px;border:1.5px solid var(--paper3);overflow:hidden;display:flex;gap:0;box-shadow:0 2px 8px rgba(0,0,0,.06)">'+
+        (firstPhoto?'<div style="width:90px;flex-shrink:0;background-size:cover;background-position:center;background-image:url('+firstPhoto+')" ></div>':'')+
+        '<div style="flex:1;padding:14px 16px;min-width:0">'+
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
+            '<div>'+
+              '<div style="font-size:13px;font-weight:700;color:var(--ink)">'+icon+' '+escHtml(doc.typeLabel)+(doc.chantierName?' — '+escHtml(doc.chantierName):'')+
+              (doc.photoCount>1?'<span style="margin-left:6px;font-size:10px;background:#f0e8ff;color:#7b2ff7;border-radius:4px;padding:1px 6px">'+doc.photoCount+' photos</span>':doc.photoCount===1?'<span style="margin-left:6px;font-size:10px;background:#f0e8ff;color:#7b2ff7;border-radius:4px;padding:1px 6px">1 photo</span>':'')+
+              '</div>'+
+              '<div style="font-size:11px;color:var(--ink3);margin-top:2px">'+dateStr+' à '+timeStr+'</div>'+
+            '</div>'+
+            '<div style="display:flex;gap:6px;flex-shrink:0">'+
+              '<button onclick="reprinterDoc(\''+doc.id+'\')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🖨 PDF</button>'+
+              '<button onclick="whatsappDoc(\''+doc.id+'\')" style="background:#25d366;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">📱</button>'+
+              '<button onclick="deleteDoc(\''+doc.id+'\')" style="background:#fdecea;color:var(--red);border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit">🗑</button>'+
+            '</div>'+
+          '</div>'+
+          '<div style="font-size:12px;color:var(--ink2);margin-top:8px;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">'+escHtml((doc.content||'').slice(0,200))+'</div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+
+  m.innerHTML='<div style="padding:1.5rem;max-width:860px">'+
+    '<div class="page-title">📁 Mes Documents</div>'+
+    '<div class="page-sub">'+docs.length+' document'+(docs.length!==1?'s':'')+' sauvegardé'+(docs.length!==1?'s':'')+' — imprimés automatiquement</div>'+
+    '<div style="display:flex;flex-direction:column;gap:10px;margin-top:1.5rem">'+cards+'</div>'+
+  '</div>';
+}
+
+function _getDocById(id){ return (state.documents||[]).find(function(d){return d.id===id;}); }
+
+function reprinterDoc(id){
+  var doc=_getDocById(id); if(!doc)return;
+  var photos=[];
+  try{ var p=localStorage.getItem('fe_docphotos_'+id); if(p) photos=JSON.parse(p); }catch(e){}
+  var photosHtml=photos.map(function(src){ return '<div class="photo-block"><img src="'+src+'"></div>'; }).join('');
+  var content=doc.content||'';
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+doc.typeLabel+'</title><style>body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:0 40px;color:#111;line-height:1.7;font-size:12pt;}.photo-block{text-align:center;margin:16px 0;}.photo-block img{max-width:100%;max-height:280px;border-radius:8px;border:1px solid #ddd;}.photo-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:16px 0;}.footer{margin-top:60px;border-top:1px solid #ccc;padding-top:10px;font-size:9pt;color:#888;text-align:center;}@media print{body{margin:20px;padding:0;}}</style></head><body>'+(photos.length>1?'<div class="photo-grid">'+photosHtml+'</div>':photosHtml)+'<pre style="white-space:pre-wrap;font-family:Georgia,serif;font-size:12pt;line-height:1.7">'+content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre><div class="footer">F Estates · '+escHtml(doc.typeLabel)+(doc.chantierName?' · '+escHtml(doc.chantierName):'')+' · '+new Date(doc.date).toLocaleDateString('fr-FR')+'</div><script>window.onload=function(){window.print();}<\/script></body></html>');
+  w.document.close();
+}
+
+function whatsappDoc(id){
+  var doc=_getDocById(id); if(!doc)return;
+  window.open('https://wa.me/?text='+encodeURIComponent(doc.content||''),'_blank');
+}
+
+function deleteDoc(id){
+  state.documents=(state.documents||[]).filter(function(d){return d.id!==id;});
+  try{ localStorage.removeItem('fe_docphotos_'+id); }catch(e){}
+  autoSave(); render(); showToast('🗑 Document supprimé');
 }
 
 function initAiChat(){
@@ -5941,16 +6053,18 @@ async function _aiStreamRequest(key){
         <!-- Photo zone -->
         <div>
           <label style="font-size:11px;font-weight:700;color:var(--ink2);letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:6px">Photo du chantier *</label>
-          <div id="photoDropZone" onclick="document.getElementById('photoRapportFileInput').click()" style="border:2px dashed #c3b0f0;border-radius:10px;padding:16px;text-align:center;cursor:pointer;background:#faf6ff;transition:all .2s;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative;overflow:hidden">
-            <input type="file" id="photoRapportFileInput" accept="image/*" style="display:none" onchange="onPhotoFileSelected(event)">
-            <div id="photoThumb" style="display:none;width:100%;height:100%;position:absolute;inset:0;background-size:cover;background-position:center;border-radius:8px"></div>
-            <div id="photoDropLabel" style="position:relative;z-index:1;pointer-events:none">
+          <div id="photoDropZone" onclick="document.getElementById('photoRapportFileInput').click()" style="border:2px dashed #c3b0f0;border-radius:10px;padding:12px;cursor:pointer;background:#faf6ff;transition:all .2s;min-height:110px;position:relative">
+            <input type="file" id="photoRapportFileInput" accept="image/*" multiple style="display:none" onchange="onPhotoFilesSelected(event)">
+            <div id="photoDropLabel" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:86px">
               <div style="font-size:28px">📷</div>
               <div style="font-size:12px;color:#7b2ff7;font-weight:600">Appuyer pour choisir</div>
-              <div style="font-size:11px;color:var(--ink3)">ou prendre une photo</div>
+              <div style="font-size:11px;color:var(--ink3)">Plusieurs photos possibles</div>
             </div>
+            <div id="photoThumbGrid" style="display:none;display:none;flex-wrap:wrap;gap:6px"></div>
           </div>
-          <button id="photoRemoveBtn" onclick="removePhoto()" style="display:none;margin-top:5px;background:none;border:none;color:var(--red);font-size:11px;cursor:pointer;font-family:inherit;text-decoration:underline">🗑 Supprimer la photo</button>
+          <div id="photoAddMoreWrap" style="display:none;margin-top:5px;display:none">
+            <button onclick="event.stopPropagation();document.getElementById('photoRapportFileInput').click()" style="background:none;border:1px solid #c3b0f0;border-radius:6px;color:#7b2ff7;font-size:11px;cursor:pointer;font-family:inherit;padding:4px 10px">+ Ajouter des photos</button>
+          </div>
         </div>
 
         <!-- Type rapport -->
