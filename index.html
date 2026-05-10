@@ -5608,14 +5608,28 @@ function partagerEmail(){
 // ════════════════════════════════════════
 //  DOCUMENTS LIBRARY
 // ════════════════════════════════════════
-function _saveDocument(doc){
+async function _saveDocument(doc){
   if(!state.documents) state.documents=[];
-  // Store photos only in localStorage (too big for Firebase)
   var docId='doc_'+Date.now()+'_'+Math.floor(Math.random()*9999);
   var photos=doc.photos||[];
-  // Save photos to localStorage keyed by docId
-  try{ if(photos.length) localStorage.setItem('fe_docphotos_'+docId, JSON.stringify(photos)); }catch(e){}
-  var entry={id:docId,date:new Date().toISOString(),type:doc.type||'rapport',typeLabel:doc.typeLabel||'Rapport',chantierName:doc.chantierName||'',content:doc.content||'',photoCount:photos.length};
+  var photoUrls=[];
+
+  // Upload photos to Firebase Storage
+  if(photos.length && window._stUpload && window._stUrl && _uid){
+    showToast('☁ Sauvegarde des photos…');
+    for(var i=0;i<photos.length;i++){
+      try{
+        var src=photos[i];
+        var parts=src.split(','); var mime=parts[0].match(/:(.*?);/)[1];
+        var path='docPhotos/'+(_adminUid||_uid)+'/'+docId+'/'+i;
+        await window._stUpload(path, src, mime);
+        var url=await window._stUrl(path);
+        photoUrls.push(url);
+      }catch(e){ console.error('Doc photo upload error',e); }
+    }
+  }
+
+  var entry={id:docId,date:new Date().toISOString(),type:doc.type||'rapport',typeLabel:doc.typeLabel||'Rapport',chantierName:doc.chantierName||'',content:doc.content||'',photoCount:photos.length,photoUrls:photoUrls};
   state.documents.unshift(entry);
   if(state.documents.length>200) state.documents=state.documents.slice(0,200);
   autoSave();
@@ -5640,9 +5654,7 @@ function renderDocumentsView(){
       var dateStr=d.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
       var timeStr=d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
       var icon=doc.type==='photo'?'📸':'📝';
-      var photos=[];
-      try{ var p=localStorage.getItem('fe_docphotos_'+doc.id); if(p) photos=JSON.parse(p); }catch(e){}
-      var firstPhoto=photos[0]||'';
+      var firstPhoto=(doc.photoUrls&&doc.photoUrls[0])||'';
       return '<div style="background:#fff;border-radius:12px;border:1.5px solid var(--paper3);overflow:hidden;display:flex;gap:0;box-shadow:0 2px 8px rgba(0,0,0,.06)">'+
         (firstPhoto?'<div style="width:90px;flex-shrink:0;background-size:cover;background-position:center;background-image:url('+firstPhoto+')" ></div>':'')+
         '<div style="flex:1;padding:14px 16px;min-width:0">'+
@@ -5675,8 +5687,7 @@ function _getDocById(id){ return (state.documents||[]).find(function(d){return d
 
 function reprinterDoc(id){
   var doc=_getDocById(id); if(!doc)return;
-  var photos=[];
-  try{ var p=localStorage.getItem('fe_docphotos_'+id); if(p) photos=JSON.parse(p); }catch(e){}
+  var photos=doc.photoUrls||[];
   var photosHtml=photos.map(function(src){ return '<div class="photo-block"><img src="'+src+'"></div>'; }).join('');
   var content=doc.content||'';
   var w=window.open('','_blank');
@@ -5690,8 +5701,14 @@ function whatsappDoc(id){
 }
 
 function deleteDoc(id){
+  var doc=_getDocById(id);
+  // Delete photos from Firebase Storage
+  if(doc && doc.photoCount>0 && window._stDelete && _uid){
+    for(var i=0;i<doc.photoCount;i++){
+      window._stDelete('docPhotos/'+(_adminUid||_uid)+'/'+id+'/'+i);
+    }
+  }
   state.documents=(state.documents||[]).filter(function(d){return d.id!==id;});
-  try{ localStorage.removeItem('fe_docphotos_'+id); }catch(e){}
   autoSave(); render(); showToast('🗑 Document supprimé');
 }
 
