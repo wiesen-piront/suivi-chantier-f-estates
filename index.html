@@ -5469,7 +5469,7 @@ function closePhotoRapport(){
 }
 
 function onPhotoFileSelected(e){
-  var f=e.target.files[0]; if(!f)return;
+  var f=e.target.files[0]||e.dataTransfer?.files[0]; if(!f)return;
   if(!f.type.startsWith('image/')){ showToast('❌ Fichier non supporté'); return; }
   if(f.size>10*1024*1024){ showToast('❌ Image trop lourde (max 10 Mo)'); return; }
   var reader=new FileReader();
@@ -5941,8 +5941,8 @@ async function _aiStreamRequest(key){
         <!-- Photo zone -->
         <div>
           <label style="font-size:11px;font-weight:700;color:var(--ink2);letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:6px">Photo du chantier *</label>
-          <div id="photoDropZone" onclick="document.getElementById('photoFileInput').click()" style="border:2px dashed #c3b0f0;border-radius:10px;padding:16px;text-align:center;cursor:pointer;background:#faf6ff;transition:all .2s;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative;overflow:hidden">
-            <input type="file" id="photoFileInput" accept="image/*" capture="environment" style="display:none" onchange="onPhotoFileSelected(event)">
+          <div id="photoDropZone" onclick="document.getElementById('photoRapportFileInput').click()" style="border:2px dashed #c3b0f0;border-radius:10px;padding:16px;text-align:center;cursor:pointer;background:#faf6ff;transition:all .2s;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative;overflow:hidden">
+            <input type="file" id="photoRapportFileInput" accept="image/*" style="display:none" onchange="onPhotoFileSelected(event)">
             <div id="photoThumb" style="display:none;width:100%;height:100%;position:absolute;inset:0;background-size:cover;background-position:center;border-radius:8px"></div>
             <div id="photoDropLabel" style="position:relative;z-index:1;pointer-events:none">
               <div style="font-size:28px">📷</div>
