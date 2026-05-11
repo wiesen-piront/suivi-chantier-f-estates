@@ -1006,7 +1006,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 
 <!-- Modal: Compte app pour sous-traitant -->
 <div class="modal-overlay" id="stAccountModal" style="z-index:750">
-  <div class="modal" style="width:380px">
+  <div class="modal" style="width:400px;max-height:90vh;overflow-y:auto">
     <h3 id="stAccountTitle">🔑 Créer un accès app</h3>
     <input type="hidden" id="stAccountStId">
     <p id="stAccountDesc" style="font-size:13px;color:var(--ink3);margin:0 0 12px">Ce sous-traitant pourra se connecter et voir ses pins privés assignés.</p>
@@ -1017,9 +1017,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
       <input type="password" id="stAccountPassword" placeholder="Min. 6 caractères">
     </div>
     <div id="stAccountExisting" style="display:none;padding:10px;background:#e8f8ee;border-radius:8px;font-size:13px;color:#27ae60;margin-bottom:8px"></div>
-    <div class="modal-btns" style="margin-top:.75rem">
-      <button class="btn-cancel" onclick="closeModal('stAccountModal');openSTManage()">Annuler</button>
-      <button class="btn-confirm" id="stAccountSaveBtn" onclick="saveSTAccount()">Créer le compte</button>
+    <!-- Chantier access (shown when account exists) -->
+    <div id="stAccountChantierRow" style="display:none">
+      <label style="margin-top:8px">Chantiers accessibles</label>
+      <div id="stAccountChantierList" style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px"></div>
+    </div>
+    <div class="modal-footer" style="margin-top:1rem">
+      <button id="stAccountDeleteBtn" style="display:none;background:#faeaea;color:#8a1a1a;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:600" onclick="deleteSTAccount()">🗑 Supprimer l'accès</button>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeModal('stAccountModal');openSTManage()">Annuler</button>
+        <button class="btn-confirm" id="stAccountSaveBtn" onclick="saveSTAccount()">Créer le compte</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3954,17 +3962,30 @@ function openSTAccountModal(stId){
   const existing=document.getElementById('stAccountExisting');
   const pwRow=document.getElementById('stAccountPwRow');
   const saveBtn=document.getElementById('stAccountSaveBtn');
+  const chantierRow=document.getElementById('stAccountChantierRow');
+  const chantierList=document.getElementById('stAccountChantierList');
+  const deleteBtn=document.getElementById('stAccountDeleteBtn');
   if(st.uid){
     document.getElementById('stAccountTitle').textContent='🔑 Compte de '+escHtml(st.name);
     existing.style.display='block';
-    existing.innerHTML='✅ Compte actif · UID: <code style="font-size:11px">'+st.uid.slice(0,12)+'…</code><br><small style="color:#555">Pour changer le mot de passe, utilisez la gestion Firebase.</small>';
+    existing.innerHTML='✅ Compte actif · <code style="font-size:11px">'+st.uid.slice(0,14)+'…</code>';
     pwRow.style.display='none';
-    saveBtn.textContent='Mettre à jour l\'e-mail';
+    saveBtn.textContent='Enregistrer';
+    deleteBtn.style.display='';
+    // Load chantier access checkboxes
+    chantierRow.style.display='';
+    window._fbGet(_adminWorkersPath()+'/'+st.uid).then(wData=>{
+      const allowed=wData?.allowedChantiers||[];
+      chantierList.innerHTML='<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer"><input type="checkbox" id="stAcc_all" '+(allowed.length===0?'checked':'')+'  onchange="onSTAccAllChange(this)"> <span>Tous les chantiers</span></label>'
+        +state.chantiers.map(c=>`<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer"><input type="checkbox" class="stAcc-ch" value="${c.id}" ${allowed.includes(c.id)?'checked':''} onchange="onSTAccChChange()"> <span>${escHtml(c.name)}</span></label>`).join('');
+    }).catch(()=>{chantierList.innerHTML='<span style="color:var(--ink3);font-size:12px">Chargement…</span>';});
   } else {
     document.getElementById('stAccountTitle').textContent='🔑 Créer accès pour '+escHtml(st.name);
     existing.style.display='none';
     pwRow.style.display='';
     saveBtn.textContent='Créer le compte';
+    deleteBtn.style.display='none';
+    chantierRow.style.display='none';
   }
   document.getElementById('stAccountModal').classList.add('open');
   setTimeout(()=>document.getElementById('stAccountEmail').focus(),100);
@@ -3995,20 +4016,50 @@ async function saveSTAccount(){
       autoSave();
       showToast('✅ Compte créé pour '+st.name);
     } else {
-      // Update email in workerMap entry only (can't change Auth email client-side)
-      const existing=await window._fbGet('workerMap/'+st.uid).catch(()=>({}));
-      await window._fbSet('workerMap/'+st.uid,{...existing,email});
-      showToast('✅ E-mail mis à jour');
+      // Update existing account: save allowed chantiers + email in DB
+      const allCheck=document.getElementById('stAcc_all');
+      const allowedChantiers=allCheck?.checked?[]:[...document.querySelectorAll('.stAcc-ch:checked')].map(cb=>+cb.value);
+      const existing=await window._fbGet(_adminWorkersPath()+'/'+st.uid).catch(()=>({}));
+      const updated={...existing,email,allowedChantiers};
+      await window._fbSet(_adminWorkersPath()+'/'+st.uid,updated);
+      await window._fbSet('workerMap/'+st.uid,updated);
+      showToast('✅ Accès mis à jour pour '+st.name);
     }
     closeModal('stAccountModal');
     openSTManage();
+    await refreshTeamList();
   }catch(e){
     console.error(e);
     const msg=e.code==='auth/email-already-in-use'?'Cet e-mail est déjà utilisé.':e.code==='auth/invalid-email'?'E-mail invalide.':(e.message||'Erreur');
     showToast('⚠ '+msg);
     btn.disabled=false;
-    btn.textContent=st.uid?'Mettre à jour':'Créer le compte';
+    btn.textContent=st.uid?'Enregistrer':'Créer le compte';
   }
+}
+
+async function deleteSTAccount(){
+  const stId=+document.getElementById('stAccountStId').value;
+  const st=state.sousTraitants.find(s=>s.id===stId);
+  if(!st||!st.uid)return;
+  if(!confirm('Supprimer l\'accès app de '+st.name+' ?\nIl ne pourra plus se connecter. Ses pins privés restent visibles pour vous.'))return;
+  try{
+    await window._fbSet(_adminWorkersPath()+'/'+st.uid,null);
+    await window._fbSet('workerMap/'+st.uid,null);
+    const idx=state.sousTraitants.findIndex(s=>s.id===stId);
+    if(idx>=0){state.sousTraitants[idx]={...state.sousTraitants[idx],uid:null};}
+    autoSave();
+    closeModal('stAccountModal');
+    openSTManage();
+    showToast('🗑 Accès supprimé pour '+st.name);
+  }catch(e){showToast('⚠ Erreur: '+(e.message||'inconnue'));}
+}
+
+function onSTAccAllChange(cb){
+  document.querySelectorAll('.stAcc-ch').forEach(c=>c.disabled=cb.checked);
+}
+function onSTAccChChange(){
+  const allCb=document.getElementById('stAcc_all');
+  if(allCb) allCb.checked=false;
 }
 
 function deleteSTConfirm(id){
