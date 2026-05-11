@@ -763,6 +763,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
     return onValue(ref(db,path),snap=>{const v=snap.val();_cSave(path,v);cb(v);});
   };
   window._fbOff=(path)=>off(ref(db,path));
+  // expose cache helpers to main script
+  window._cSave=_cSave;
+  window._cLoad=_cLoad;
 
   // ── ONLINE / OFFLINE EVENTS ──────────────────────────────────────────
   function _applyNetworkState(online){
@@ -1440,6 +1443,25 @@ async function doLogin(){
   const btn=document.getElementById('loginBtn');
   const err=document.getElementById('loginError');
   if(!email||!pw){err.textContent='Veuillez remplir tous les champs.';return;}
+  // ── OFFLINE BYPASS ──────────────────────────────────────────────────
+  if(!navigator.onLine){
+    const sess=window._cLoad&&window._cLoad('__session__');
+    if(sess&&sess.uid){
+      // restore session from cache
+      _uid=sess.uid;_isWorker=sess.isWorker;_adminUid=sess.adminUid;
+      _allowedChantiers=sess.allowedChantiers||[];_workerName=sess.workerName||'';
+      hideLoginScreen({email:sess.email});
+      setSyncStatus('offline');
+      state={chantiers:[],sousTraitants:[],profile:{logo:null,companyName:''},plannings:[],currentView:'dashboard',currentChantierId:null,currentPhaseId:null,currentPlanningId:null};
+      render();startFirebaseListener();initAiChat();
+      _applyNetworkState(false);
+      return;
+    }
+    err.textContent='📵 Hors ligne — connectez-vous d\'abord une fois avec du réseau.';
+    btn.disabled=false;btn.textContent='Se connecter';
+    return;
+  }
+  // ── NORMAL LOGIN ────────────────────────────────────────────────────
   btn.disabled=true;btn.textContent='Connexion…';err.textContent='';
   try{ await window._fbSignIn(email,pw); }
   catch(e){
@@ -5209,6 +5231,8 @@ document.addEventListener('firebaseReady',()=>{
         _allowedChantiers=[];
         _workerName='';
       }
+      // cache session for offline login
+      if(window._cSave) window._cSave('__session__',{uid:_uid,email:user.email,isWorker:_isWorker,adminUid:_adminUid,allowedChantiers:_allowedChantiers,workerName:_workerName});
       hideLoginScreen(user);
       setSyncStatus('syncing');
       state={chantiers:[],sousTraitants:[],profile:{logo:null,companyName:''},plannings:[],currentView:'dashboard',currentChantierId:null,currentPhaseId:null,currentPlanningId:null};
