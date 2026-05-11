@@ -1086,6 +1086,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
       <span class="plan-viewer-title" id="planViewerTitle">Plan</span>
       <div class="plan-viewer-btns">
         <span class="ann-hint" id="annHint" style="display:none">Cliquez sur le plan pour ajouter un pin</span>
+        <div id="pdfPageNav" style="display:none;align-items:center;gap:4px">
+          <button class="zoom-btn" onclick="pdfPrevPage()" title="Page précédente">◀</button>
+          <span class="zoom-label" id="pdfPageLabel" style="min-width:64px;text-align:center">Page 1/1</span>
+          <button class="zoom-btn" onclick="pdfNextPage()" title="Page suivante">▶</button>
+        </div>
         <button class="ann-mode-btn" id="annModeBtn" onclick="toggleAnnotationMode()" style="display:none">📍 Annoter</button>
         <div class="zoom-btns" id="zoomBtns" style="display:none">
           <button class="zoom-btn" onclick="setZoom(_annZoom-0.25)" title="Dézoomer">−</button>
@@ -1093,6 +1098,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
           <button class="zoom-btn" onclick="setZoom(_annZoom+0.25)" title="Zoomer">+</button>
           <button class="zoom-btn" onclick="setZoom(1)" title="Réinitialiser" style="font-size:11px">⊡</button>
         </div>
+        <button class="back-btn" id="printPlanBtn" onclick="printAnnotatedPlan()" style="display:none">🖨 Imprimer</button>
         <button class="back-btn" onclick="downloadCurrentPlan()">⬇ Télécharger</button>
         <button class="back-btn" onclick="closePlanViewer()">✕ Fermer</button>
       </div>
@@ -1140,7 +1146,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 
 <!-- PIN MODAL -->
 <div class="modal-overlay" id="pinModal" style="z-index:600">
-  <div class="modal" style="width:380px">
+  <div class="modal" style="width:400px;max-height:90vh;overflow-y:auto">
     <h3>📍 Ajouter une note sur le plan</h3>
     <label>Titre *</label>
     <input type="text" id="pinTitleInput" placeholder="Ex: Fissure mur nord" maxlength="80">
@@ -1153,6 +1159,28 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
       <option value="info">🔵 Information</option>
       <option value="solved">✅ Résolu</option>
     </select>
+    <label>📸 Photo du problème <span style="font-weight:400;color:var(--ink3)">(optionnel)</span></label>
+    <div style="display:flex;gap:8px;margin-bottom:4px">
+      <button type="button" onclick="document.getElementById('pinPhotoFile').click()" style="flex:1;padding:8px;border:1.5px dashed #ccc;border-radius:8px;background:#fafafa;cursor:pointer;font-size:12px;font-family:inherit">📁 Fichier</button>
+      <button type="button" onclick="document.getElementById('pinPhotoCamera').click()" style="flex:1;padding:8px;border:1.5px dashed #ccc;border-radius:8px;background:#fafafa;cursor:pointer;font-size:12px;font-family:inherit">📷 Caméra</button>
+    </div>
+    <input type="file" id="pinPhotoFile" accept="image/*" style="display:none" onchange="onPinPhotoSelected(this)">
+    <input type="file" id="pinPhotoCamera" accept="image/*" capture="environment" style="display:none" onchange="onPinPhotoSelected(this)">
+    <div id="pinPhotoPreview" style="display:none;margin-bottom:8px;position:relative">
+      <img id="pinPhotoPreviewImg" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;border:1px solid #ddd">
+      <button onclick="clearPinPhoto()" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:13px">×</button>
+    </div>
+    <label>Visibilité</label>
+    <select id="pinVisibilityInput" onchange="onPinVisibilityChange(this.value)" style="margin-bottom:6px">
+      <option value="general">🌐 Général — visible par tous</option>
+      <option value="worker">🔒 Privé — visible uniquement par le destinataire</option>
+    </select>
+    <div id="pinWorkerRow" style="display:none">
+      <label>Assigner à un membre de l'équipe (accès app) *</label>
+      <select id="pinWorkerInput">
+        <option value="">— Choisir —</option>
+      </select>
+    </div>
     <label>Assigner à un sous-traitant <span style="font-weight:400;color:var(--ink3)">(optionnel)</span></label>
     <select id="pinAssignInput">
       <option value="">— Non assigné —</option>
@@ -1166,13 +1194,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 
 <!-- PIN RESOLVE MODAL -->
 <div class="modal-overlay" id="pinResolveModal" style="z-index:700">
-  <div class="modal" style="width:340px">
+  <div class="modal" style="width:380px;max-height:90vh;overflow-y:auto">
     <h3>✅ Marquer comme résolu</h3>
-    <p style="font-size:13px;color:var(--ink2);margin-bottom:1rem">Indiquez votre nom pour confirmer la résolution.</p>
+    <p style="font-size:13px;color:var(--ink2);margin-bottom:1rem">Confirmez la résolution avec une photo de l'état réparé.</p>
     <label>Votre nom *</label>
     <input type="text" id="pinResolveNameInput" placeholder="Prénom Nom" maxlength="60">
     <label>Commentaire <span style="font-weight:400;color:var(--ink3)">(optionnel)</span></label>
     <textarea id="pinResolveNoteInput" placeholder="Ex: Fissure rebouchée et peinte…" rows="2"></textarea>
+    <label>📸 Photo de l'état résolu *</label>
+    <div style="display:flex;gap:8px;margin-bottom:4px">
+      <button type="button" onclick="document.getElementById('pinResolvePhotoFile').click()" style="flex:1;padding:8px;border:1.5px dashed #27ae60;border-radius:8px;background:#f0faf4;cursor:pointer;font-size:12px;font-family:inherit">📁 Fichier</button>
+      <button type="button" onclick="document.getElementById('pinResolvePhotoCamera').click()" style="flex:1;padding:8px;border:1.5px dashed #27ae60;border-radius:8px;background:#f0faf4;cursor:pointer;font-size:12px;font-family:inherit">📷 Caméra</button>
+    </div>
+    <input type="file" id="pinResolvePhotoFile" accept="image/*" style="display:none" onchange="onResolvePhotoSelected(this)">
+    <input type="file" id="pinResolvePhotoCamera" accept="image/*" capture="environment" style="display:none" onchange="onResolvePhotoSelected(this)">
+    <div id="pinResolvePhotoPreview" style="display:none;margin-bottom:8px;position:relative">
+      <img id="pinResolvePhotoImg" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;border:2px solid #27ae60">
+      <button onclick="clearResolvePhoto()" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:13px">×</button>
+    </div>
     <div class="modal-btns" style="margin-top:.5rem">
       <button onclick="document.getElementById('pinResolveModal').classList.remove('open')" style="background:var(--paper2);color:var(--ink);border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif">Annuler</button>
       <button onclick="confirmResolvePin()" style="background:#27ae60;color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600">✅ Confirmer résolu</button>
@@ -1337,6 +1376,18 @@ function hideLoginScreen(user){
 //  STATE
 // ════════════════════════════════════════
 let state={ chantiers:[], sousTraitants:[], profile:{ logo:null, companyName:'' }, currentView:'dashboard', currentChantierId:null, currentPhaseId:null };
+// Pre-load default logo as base64 so it works inside PDF popup windows
+window._defaultLogoB64=null;
+(function(){
+  var img=new Image();
+  var c=document.createElement('canvas');
+  img.onload=function(){
+    c.width=img.naturalWidth; c.height=img.naturalHeight;
+    c.getContext('2d').drawImage(img,0,0);
+    try{ window._defaultLogoB64=c.toDataURL('image/png'); }catch(e){}
+  };
+  img.src='./logo.png';
+})();
 let _stPickerSelected=[];
 let _stPickerCtx=null; // {aptMode:false} or {aptMode:true,aptId,cid,pid,idx}
 let _isSyncing=false, _filter='all', _noteDebounce=null, _projectNotesOpen=false;
@@ -2865,7 +2916,7 @@ function renderPlansCard(cid){
         <div class="plan-size">${formatFileSize(p.size)} — ${formatDateShort(p.addedAt)}${pinCount?` — <b style="color:var(--accent)">📍 ${pinCount} pin${pinCount>1?'s':''}</b>`:''}</div>
       </div>
       <div class="plan-btns">
-        ${isImg?`<button class="icon-btn" onclick="viewPlan(${cid},${i})" title="Annoter / Voir" style="color:var(--accent2)">📍</button>`:''}
+        <button class="icon-btn" onclick="viewPlan(${cid},${i})" title="Annoter / Voir" style="color:var(--accent2)">📍</button>
         <button class="icon-btn" onclick="viewPlan(${cid},${i})" title="Voir le plan">👁</button>
         <button class="icon-btn" onclick="downloadPlan(${cid},${i})" title="Télécharger">⬇</button>
         <button class="icon-btn del" onclick="removePlan(${cid},${i})" title="Supprimer">×</button>
@@ -2933,6 +2984,113 @@ function processPlanFiles(files,cid){
   });
 }
 let _viewerPlan=null,_annCid=null,_annPlanIdx=null,_annMode=false,_pendingPinX=0,_pendingPinY=0,_annAptMode=false;
+// PDF state
+let _pdfDoc=null,_pdfPageNum=1,_pdfTotalPages=1,_pdfCid=null,_pdfPlanIdx=null;
+
+async function _renderPdfPage(pageNum,cid,planIdx){
+  if(!_pdfDoc)return;
+  const page=await _pdfDoc.getPage(pageNum);
+  // Scale to fit container width at decent quality
+  const container=document.getElementById('planAnnContainer');
+  const maxW=container?container.clientWidth-40:900;
+  const maxH=container?container.clientHeight-40:700;
+  const baseVp=page.getViewport({scale:1});
+  const scaleW=maxW/baseVp.width;
+  const scaleH=maxH/baseVp.height;
+  const scale=Math.min(Math.max(scaleW,scaleH)*1.5, 3); // cap at 3× for memory
+  const viewport=page.getViewport({scale});
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.round(viewport.width);
+  canvas.height=Math.round(viewport.height);
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  await page.render({canvasContext:ctx,viewport}).promise;
+  const dataUrl=canvas.toDataURL('image/jpeg',0.92);
+  const img=document.getElementById('planAnnImg');
+  img.style.width='auto';
+  img.src=dataUrl;
+  const c=cid!==undefined?cid:_pdfCid;
+  const p=planIdx!==undefined?planIdx:_pdfPlanIdx;
+  img.onload=()=>{
+    const ac=document.getElementById('planAnnContainer');
+    if(ac) ac._pzInited=false;
+    _fitToContainer();
+    renderPins(c,p);
+    _initPanZoom();
+  };
+  _pdfPageNum=pageNum;
+  const lbl=document.getElementById('pdfPageLabel');
+  if(lbl) lbl.textContent='Page '+pageNum+' / '+_pdfTotalPages;
+}
+function pdfPrevPage(){ if(_pdfPageNum>1) _renderPdfPage(_pdfPageNum-1); }
+function pdfNextPage(){ if(_pdfPageNum<_pdfTotalPages) _renderPdfPage(_pdfPageNum+1); }
+
+function printAnnotatedPlan(){
+  // Capture current view (image + pins) as PDF-printable HTML
+  const img=document.getElementById('planAnnImg');
+  if(!img||!img.src||img.src==='')return;
+  const plan=(_pdfCid!=null?getChantier(_pdfCid)?.plans?.[_pdfPlanIdx]:_viewerPlan)||_viewerPlan;
+  const ch=_pdfCid!=null?getChantier(_pdfCid):null;
+  const pins=(plan?.pins||[]);
+  const pageLabel=_pdfDoc?(' — Page '+_pdfPageNum+'/'+_pdfTotalPages):'';
+  const pinsLegend=pins.length?'<table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:10pt">'
+    +'<tr style="background:#0b1d4d;color:#fff"><th style="padding:6px 10px;text-align:left">N°</th><th style="padding:6px 10px;text-align:left">Observation</th><th style="padding:6px 10px;text-align:left">Statut</th></tr>'
+    +pins.map(function(p,i){
+      var catColors={problem:'#faeaea',todo:'#fffbe6',info:'#e8f0ff',solved:'#e8f8ee'};
+      var catLabels={problem:'🔴 Problème',todo:'🟡 À faire',info:'🔵 Info',solved:'✅ Résolu'};
+      return '<tr style="background:'+(catColors[p.category]||'#fff')+'">'
+        +'<td style="padding:5px 10px;font-weight:bold;border-bottom:1px solid #eee">'+(i+1)+'</td>'
+        +'<td style="padding:5px 10px;border-bottom:1px solid #eee">'+escHtml(p.title||'')+(p.note?'<br><i style="color:#666;font-size:9pt">'+escHtml(p.note)+'</i>':'')+'</td>'
+        +'<td style="padding:5px 10px;border-bottom:1px solid #eee">'+escHtml(catLabels[p.category]||p.category||'')+'</td>'
+        +'</tr>';
+    }).join('')+'</table>':
+    '<p style="color:#888;font-size:10pt;margin-top:8px">Aucun pin sur cette page.</p>';
+  // Render current canvas view with pins baked in
+  var annCanvas=document.createElement('canvas');
+  var anImg=new Image(); anImg.src=img.src;
+  anImg.onload=function(){
+    annCanvas.width=anImg.naturalWidth; annCanvas.height=anImg.naturalHeight;
+    var ctx=annCanvas.getContext('2d');
+    ctx.drawImage(anImg,0,0);
+    // Draw pins on canvas
+    var wrap=document.getElementById('planAnnImgWrap');
+    var wRect=wrap.getBoundingClientRect();
+    pins.forEach(function(pin,i){
+      var px=pin.x/100*annCanvas.width;
+      var py=pin.y/100*annCanvas.height;
+      var r=Math.max(18,annCanvas.width*0.015);
+      var catFill={problem:'#e53935',todo:'#f9a825',info:'#1e88e5',solved:'#43a047'};
+      ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2);
+      ctx.fillStyle=catFill[pin.category]||'#e53935'; ctx.fill();
+      ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.stroke();
+      ctx.fillStyle='#fff'; ctx.font='bold '+Math.round(r*0.9)+'px Arial';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(String(i+1),px,py);
+    });
+    var annotatedImg=annCanvas.toDataURL('image/png');
+    var logo=(state.profile&&state.profile.logo)?state.profile.logo:(window._defaultLogoB64||'');
+    var company=(state.profile&&state.profile.companyName)||'F Estates';
+    var logoHtml=logo?'<img src="'+logo+'" style="height:44px;max-width:160px;object-fit:contain" alt="Logo">'
+      :'<div style="font-size:18px;font-weight:800;color:#0b1d4d">'+escHtml(company)+'</div>';
+    var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Plan annoté</title><style>'
+      +'*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Georgia,serif;background:#f4f4f4;padding:20px;}'
+      +'.page{max-width:900px;margin:0 auto;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.12);}'
+      +'.hdr{display:flex;align-items:center;justify-content:space-between;padding:20px 32px 16px;border-bottom:3px solid #0b1d4d;}'
+      +'.hdr-right{text-align:right;color:#0b1d4d;}.plan-title{font-size:16pt;font-weight:bold;color:#0b1d4d;}'
+      +'.meta{background:#0b1d4d;padding:10px 32px;color:rgba(255,255,255,.75);font-size:9pt;}'
+      +'.meta b{color:#fff;} .img-wrap{padding:20px 32px;text-align:center;} .img-wrap img{max-width:100%;border-radius:6px;border:1px solid #dde3ef;}'
+      +'.leg{padding:12px 32px 24px;} .leg-title{font-size:10pt;font-weight:700;color:#0b1d4d;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}'
+      +'@media print{body{background:none;padding:0}.page{box-shadow:none}.print-btn{display:none}}'
+      +'</style></head><body><div class="page">'
+      +'<div class="hdr"><div>'+logoHtml+'</div><div class="hdr-right"><div class="plan-title">📐 '+escHtml(plan?.name||'Plan')+'</div><div style="font-size:9pt;color:#888;margin-top:4px">'+new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+pageLabel+'</div></div></div>'
+      +'<div class="meta"><b>Chantier</b> '+(ch?escHtml(ch.name):'—')+' &nbsp;·&nbsp; <b>Établi par</b> '+escHtml(company)+(pins.length?' &nbsp;·&nbsp; <b>'+pins.length+' pin'+(pins.length>1?'s':'')+' positionnés</b>':'')+'</div>'
+      +'<div class="img-wrap"><img src="'+annotatedImg+'"></div>'
+      +(pins.length?'<div class="leg"><div class="leg-title">Légende des observations</div>'+pinsLegend+'</div>':'')
+      +'</div><button onclick="window.print()" style="display:block;margin:16px auto;background:#0b1d4d;color:#fff;border:none;border-radius:8px;padding:10px 28px;font-size:13px;cursor:pointer;font-family:Georgia,serif" class="print-btn">🖨 Imprimer / PDF</button>'
+      +'</body></html>';
+    _openPdfWindow(html,'Plan annoté');
+  };
+}
 let _annZoom=1,_annPanX=0,_annPanY=0;
 let _isDragging=false,_dragStartX=0,_dragStartY=0,_dragStartPanX=0,_dragStartPanY=0;
 let _pinchStartDist=0,_pinchStartZoom=1,_pinchStartPanX=0,_pinchStartPanY=0,_pinchMidX=0,_pinchMidY=0;
@@ -3097,7 +3255,9 @@ async function viewPlan(cid,idx){
       fileUrl=window._planBlobUrl;
     }catch(e){ fileUrl=data; }
   }
-  if(isImg){
+  const pdfNav=document.getElementById('pdfPageNav');
+  const printBtn=document.getElementById('printPlanBtn');
+  function _activateAnnViewer(){
     frame.style.display='none';
     ann.style.display='flex';
     annBtn.style.display='';annBtn.textContent='📍 Annoter';annBtn.classList.remove('active');
@@ -3105,18 +3265,71 @@ async function viewPlan(cid,idx){
     zoomBtns.style.display='flex';
     ann.classList.remove('ann-mode');
     _annZoom=1;_annPanX=0;_annPanY=0;
+    ann._pzInited=false;
+    document.getElementById('zoomLabel').textContent='100%';
+    printBtn.style.display='';
+  }
+  if(isImg){
+    pdfNav.style.display='none';
+    _activateAnnViewer();
     const img=document.getElementById('planAnnImg');
     img.style.width='auto';
     img.src=fileUrl;
-    ann._pzInited=false;
-    document.getElementById('zoomLabel').textContent='100%';
     img.onload=()=>{_fitToContainer();renderPins(cid,idx);_initPanZoom();};
     if(img.complete&&img.naturalWidth){setTimeout(()=>{_fitToContainer();renderPins(cid,idx);_initPanZoom();},50);}
+  } else if(plan.type==='application/pdf'||plan.name?.toLowerCase().endsWith('.pdf')){
+    // PDF → render with PDF.js
+    if(typeof pdfjsLib==='undefined'){
+      // PDF.js not yet loaded — show in iframe as fallback
+      ann.style.display='none'; frame.style.display=''; frame.src=fileUrl;
+      showToast('⚠ Visionneuse PDF basique — rechargez pour activer les pins');
+      return;
+    }
+    _activateAnnViewer();
+    pdfNav.style.display='flex';
+    _pdfCid=cid; _pdfPlanIdx=idx;
+    // Show loading state
+    const img=document.getElementById('planAnnImg');
+    img.src=''; img.style.width='100%';
+    const wrap=document.getElementById('planAnnImgWrap');
+    if(wrap) wrap.innerHTML='<div id="planAnnImg" style="display:none"></div><div id="pdfLoadingMsg" style="color:#888;font-size:14px;text-align:center;padding:40px;width:100%">⏳ Chargement du PDF… (peut prendre quelques secondes)</div>';
+    try{
+      // Build PDF source — prefer Storage URL (avoids re-encoding); else use local data
+      let pdfSrc;
+      if(fileUrl.startsWith('blob:')||fileUrl.startsWith('http')){
+        pdfSrc={url:fileUrl,withCredentials:false};
+      } else {
+        // data URL → Uint8Array (more reliable for PDF.js)
+        const b64=fileUrl.split(',')[1];
+        const bin=atob(b64);
+        const bytes=new Uint8Array(bin.length);
+        for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+        pdfSrc={data:bytes};
+      }
+      _pdfDoc=await pdfjsLib.getDocument(pdfSrc).promise;
+      _pdfTotalPages=_pdfDoc.numPages;
+      _pdfPageNum=1;
+      // Restore img element (was replaced by loading msg)
+      const loadWrap=document.getElementById('planAnnImgWrap');
+      if(loadWrap&&!document.getElementById('planAnnImg')){
+        loadWrap.innerHTML='<img class="plan-ann-img" id="planAnnImg" src="" alt="" draggable="false">';
+      }
+      const ldMsg=document.getElementById('pdfLoadingMsg');
+      if(ldMsg) ldMsg.remove();
+      await _renderPdfPage(1,cid,idx);
+      showToast('✅ '+_pdfTotalPages+' page'+(+_pdfTotalPages>1?'s':''));
+    }catch(err){
+      const loadWrap=document.getElementById('planAnnImgWrap');
+      if(loadWrap) loadWrap.innerHTML='<div id="planAnnImg" style="display:none"></div><div style="color:#c00;padding:32px;text-align:center;width:100%">❌ Erreur PDF: '+escHtml(err.message)+'<br><small>Essayez de re-téléverser le fichier</small></div>';
+      console.error('PDF.js error',err);
+    }
   } else {
     ann.style.display='none';
     frame.style.display='';
     annBtn.style.display='none';annHint.style.display='none';
     zoomBtns.style.display='none';
+    pdfNav.style.display='none';
+    printBtn.style.display='none';
     frame.src=fileUrl;
   }
 }
@@ -3129,6 +3342,12 @@ function closePlanViewer(){
   document.getElementById('planAnnImg').src='';
   _viewerPlan=null;_annCid=null;_annPlanIdx=null;_annMode=false;_annAptMode=false;
   _annZoom=1;_annPanX=0;_annPanY=0;_isDragging=false;
+  // Reset PDF state
+  _pdfDoc=null;_pdfPageNum=1;_pdfTotalPages=1;_pdfCid=null;_pdfPlanIdx=null;
+  const pdfNav=document.getElementById('pdfPageNav');
+  if(pdfNav) pdfNav.style.display='none';
+  const printBtn=document.getElementById('printPlanBtn');
+  if(printBtn) printBtn.style.display='none';
   const c=document.getElementById('planAnnContainer');
   if(c){c._pzInited=false;c.classList.remove('panning');}
 }
@@ -3149,12 +3368,16 @@ function renderPins(cid,planIdx){
   wrap.querySelectorAll('.pin-dot,.pin-popup').forEach(el=>el.remove());
   const plan=_annAptMode?_viewerPlan:getChantier(cid)?.plans?.[planIdx];
   if(!plan)return;
-  (plan.pins||[]).forEach((pin,i)=>{
+  let visibleIdx=0;
+  (plan.pins||[]).forEach((pin)=>{
+    // Visibility filter: workers only see general pins or pins assigned to them
+    if(_isWorker && pin.assignedWorkerUid && pin.assignedWorkerUid !== _uid) return;
+    visibleIdx++;
     const dot=document.createElement('div');
     dot.className='pin-dot '+(pin.category||'info');
     dot.style.left=pin.x+'%';
     dot.style.top=pin.y+'%';
-    dot.textContent=i+1;
+    dot.textContent=visibleIdx;
     dot.title=pin.title;
     dot.addEventListener('click',function(e){
       e.stopPropagation();
@@ -3167,22 +3390,46 @@ function renderPins(cid,planIdx){
 function showPinPopup(cid,planIdx,pinId,dotEl){
   // Remove any existing popup
   document.querySelectorAll('.pin-popup').forEach(p=>p.remove());
-  const plan=getChantier(cid)?.plans?.[planIdx];
+  const plan=_annAptMode?_viewerPlan:getChantier(cid)?.plans?.[planIdx];
   const pin=plan?.pins?.find(p=>p.id===pinId);
   if(!pin)return;
   const catLabels={problem:'🔴 Problème',todo:'🟡 À faire',info:'🔵 Information',solved:'✅ Résolu'};
   const assignedST=pin.assignedSTId?state.sousTraitants.find(s=>s.id===pin.assignedSTId):null;
-  const resolvedHtml=pin.resolvedBy?`<div style="font-size:11px;color:#27ae60;margin:4px 0">✅ Résolu par <b>${escHtml(pin.resolvedBy)}</b>${pin.resolveNote?' — '+escHtml(pin.resolveNote):''}</div>`:'';
-  const assignHtml=assignedST?`<div style="font-size:11px;color:var(--green);margin:4px 0">👷 ${escHtml(assignedST.name)}</div>`:'';
+  // Assigned worker name
+  const assignedWorker=pin.assignedWorkerUid?_cachedWorkers.find(w=>w.uid===pin.assignedWorkerUid):null;
+  // Problem photo
+  const problemPhotoHtml=pin.photo
+    ?`<div style="margin:6px 0"><img src="${pin.photo}" style="max-width:200px;max-height:130px;border-radius:6px;object-fit:cover;cursor:zoom-in;border:1px solid #ddd" onclick="this.style.maxWidth=this.style.maxWidth==='100%'?'200px':'100%';this.style.maxHeight=this.style.maxHeight==='none'?'130px':'none'" title="Photo du problème"></div>`
+    :'';
+  // Resolved section
+  let resolvedHtml='';
+  if(pin.resolvedBy){
+    const resolvedDate=pin.resolvedAt?(' · '+formatDate(pin.resolvedAt)):'';
+    const resolvePhotoHtml=pin.resolvePhoto
+      ?`<div style="margin:4px 0"><img src="${pin.resolvePhoto}" style="max-width:200px;max-height:130px;border-radius:6px;object-fit:cover;cursor:zoom-in;border:2px solid #27ae60" onclick="this.style.maxWidth=this.style.maxWidth==='100%'?'200px':'100%';this.style.maxHeight=this.style.maxHeight==='none'?'130px':'none'" title="Photo de la réparation"></div>`
+      :'';
+    resolvedHtml=`<div style="font-size:11px;color:#27ae60;margin:6px 0;padding:6px 8px;background:#f0faf4;border-radius:6px;border-left:3px solid #27ae60">
+      ✅ <b>Résolu par ${escHtml(pin.resolvedBy)}</b>${resolvedDate}${pin.resolveNote?'<br><span style="color:#555">'+escHtml(pin.resolveNote)+'</span>':''}
+      ${resolvePhotoHtml}
+    </div>`;
+  }
+  const assignHtml=assignedST?`<div style="font-size:11px;color:#1a7a4a;margin:3px 0">👷 ${escHtml(assignedST.name)}${assignedST.company?' — '+escHtml(assignedST.company):''}</div>`:'';
+  const workerHtml=assignedWorker?`<div style="font-size:11px;color:#555;margin:2px 0">🔒 Privé → ${escHtml(assignedWorker.name||assignedWorker.email||'')}</div>`:'';
+  const createdHtml=pin.createdAt?`<div style="font-size:10px;color:#aaa;margin:2px 0">${formatDate(pin.createdAt)}</div>`:'';
+  // Action buttons — workers can resolve but not delete (admins can delete)
+  const canResolve=pin.category!=='solved';
+  const canDelete=!_isWorker;
   const popup=document.createElement('div');
   popup.className='pin-popup';
   popup.innerHTML=`<div class="pin-popup-cat">${catLabels[pin.category]||pin.category}</div>
     <div class="pin-popup-title">${escHtml(pin.title)}</div>
     ${pin.note?`<div class="pin-popup-note">${escHtml(pin.note)}</div>`:''}
-    ${assignHtml}${resolvedHtml}
+    ${problemPhotoHtml}
+    ${assignHtml}${workerHtml}${createdHtml}
+    ${resolvedHtml}
     <div class="pin-popup-btns" style="margin-top:8px">
-      ${pin.category!=='solved'?`<button onclick="openResolvePinModal(${cid},${planIdx},${pin.id})" style="background:#e8f8ee;color:#27ae60;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:11px;font-family:'DM Sans',sans-serif;font-weight:600">✅ Résoudre</button>`:''}
-      <button onclick="deletePinFromPlan(${cid},${planIdx},${pin.id})" style="background:#faeaea;color:#8a1a1a;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:11px;font-family:'DM Sans',sans-serif">🗑</button>
+      ${canResolve?`<button onclick="openResolvePinModal(${cid},${planIdx},${pin.id})" style="background:#e8f8ee;color:#27ae60;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:11px;font-family:'DM Sans',sans-serif;font-weight:600">✅ Résoudre</button>`:''}
+      ${canDelete?`<button onclick="deletePinFromPlan(${cid},${planIdx},${pin.id})" style="background:#faeaea;color:#8a1a1a;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:11px;font-family:'DM Sans',sans-serif">🗑</button>`:''}
     </div>`;
   popup.style.position='absolute';
   // Place popup below the dot, shift left if near right edge
@@ -3208,6 +3455,53 @@ function deletePinFromPlan(cid,planIdx,pinId){
 }
 // ─── PIN ASSIGNMENT & RESOLVE ───────────────────────────────────────────────
 let _resolvingPin={cid:null,planIdx:null,pinId:null};
+let _pinPhotoB64=null;      // photo attached when creating pin
+let _resolvePhotoB64=null;  // photo attached when resolving pin
+
+// Compress image file to base64 JPEG
+function _compressImg(file, maxW, maxH, quality, cb){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const img=new Image();
+    img.onload=function(){
+      let w=img.naturalWidth, h=img.naturalHeight;
+      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+      if(h>maxH){w=Math.round(w*maxH/h);h=maxH;}
+      const c=document.createElement('canvas');
+      c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      cb(c.toDataURL('image/jpeg',quality));
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function onPinPhotoSelected(input){
+  const file=input.files[0]; if(!file)return;
+  _compressImg(file,1200,900,0.78,function(b64){
+    _pinPhotoB64=b64;
+    document.getElementById('pinPhotoPreviewImg').src=b64;
+    document.getElementById('pinPhotoPreview').style.display='block';
+  });
+  input.value='';
+}
+function clearPinPhoto(){ _pinPhotoB64=null; document.getElementById('pinPhotoPreview').style.display='none'; document.getElementById('pinPhotoPreviewImg').src=''; }
+
+function onResolvePhotoSelected(input){
+  const file=input.files[0]; if(!file)return;
+  _compressImg(file,1200,900,0.78,function(b64){
+    _resolvePhotoB64=b64;
+    document.getElementById('pinResolvePhotoImg').src=b64;
+    document.getElementById('pinResolvePhotoPreview').style.display='block';
+  });
+  input.value='';
+}
+function clearResolvePhoto(){ _resolvePhotoB64=null; document.getElementById('pinResolvePhotoPreview').style.display='none'; document.getElementById('pinResolvePhotoImg').src=''; }
+
+function onPinVisibilityChange(val){
+  document.getElementById('pinWorkerRow').style.display=val==='worker'?'block':'none';
+}
 
 function _populateSTSelect(){
   const sel=document.getElementById('pinAssignInput');
@@ -3219,10 +3513,19 @@ function _populateSTSelect(){
     opt.textContent=(st.name||'?')+(st.company?' ('+st.company+')':'');
     sel.appendChild(opt);
   });
+  // Populate worker select
+  const wsel=document.getElementById('pinWorkerInput');
+  if(wsel){
+    wsel.innerHTML='<option value="">— Choisir —</option>';
+    _cachedWorkers.forEach(w=>{
+      const opt=document.createElement('option');
+      opt.value=w.uid;
+      opt.textContent=(w.name||w.email||w.uid);
+      wsel.appendChild(opt);
+    });
+  }
 }
 
-// Override confirmAddPin to include assignedSTId
-const _origConfirmAddPin=window.confirmAddPin;
 function confirmAddPin(){
   const title=document.getElementById('pinTitleInput').value.trim();
   if(!title){document.getElementById('pinTitleInput').focus();return;}
@@ -3230,11 +3533,26 @@ function confirmAddPin(){
   const cat=document.getElementById('pinCategoryInput').value;
   const assignSel=document.getElementById('pinAssignInput');
   const assignedSTId=assignSel&&assignSel.value?parseInt(assignSel.value):null;
+  const visibility=document.getElementById('pinVisibilityInput')?.value||'general';
+  const workerSel=document.getElementById('pinWorkerInput');
+  const assignedWorkerUid=(visibility==='worker'&&workerSel?.value)?workerSel.value:null;
+  if(visibility==='worker'&&!assignedWorkerUid){showToast('⚠ Choisissez un membre de l\'équipe');return;}
   const plan=_annAptMode?_viewerPlan:(getChantier(_annCid)?.plans?.[_annPlanIdx]);
   if(!plan)return;
   plan.pins=plan.pins||[];
-  plan.pins.push({id:Date.now(),x:_pendingPinX,y:_pendingPinY,title,note,category:cat,assignedSTId,createdAt:new Date().toISOString(),resolvedBy:null,resolvedAt:null,resolveNote:''});
+  plan.pins.push({
+    id:Date.now(),x:_pendingPinX,y:_pendingPinY,
+    title,note,category:cat,
+    assignedSTId,
+    assignedWorkerUid:assignedWorkerUid||null,
+    photo:_pinPhotoB64||null,
+    createdAt:new Date().toISOString(),
+    resolvedBy:null,resolvedAt:null,resolveNote:'',resolvePhoto:null
+  });
   document.getElementById('pinModal').classList.remove('open');
+  clearPinPhoto();
+  document.getElementById('pinVisibilityInput').value='general';
+  document.getElementById('pinWorkerRow').style.display='none';
   autoSave();
   renderPins(_annCid,_annPlanIdx);
   renderSidebar();
@@ -3245,6 +3563,7 @@ function openResolvePinModal(cid,planIdx,pinId){
   _resolvingPin={cid,planIdx,pinId,aptMode:_annAptMode};
   document.getElementById('pinResolveNameInput').value='';
   document.getElementById('pinResolveNoteInput').value='';
+  clearResolvePhoto();
   document.querySelectorAll('.pin-popup').forEach(p=>p.remove());
   document.getElementById('pinResolveModal').classList.add('open');
 }
@@ -3252,6 +3571,7 @@ function openResolvePinModal(cid,planIdx,pinId){
 function confirmResolvePin(){
   const name=document.getElementById('pinResolveNameInput').value.trim();
   if(!name){document.getElementById('pinResolveNameInput').focus();return;}
+  if(!_resolvePhotoB64){showToast('📸 Veuillez ajouter une photo de la réparation');return;}
   const note=document.getElementById('pinResolveNoteInput').value.trim();
   const {cid,planIdx,pinId}=_resolvingPin;
   const plan=_resolvingPin.aptMode?_viewerPlan:getChantier(cid)?.plans?.[planIdx];
@@ -3262,7 +3582,9 @@ function confirmResolvePin(){
   pin.resolvedBy=name;
   pin.resolvedAt=new Date().toISOString();
   pin.resolveNote=note;
+  pin.resolvePhoto=_resolvePhotoB64;
   document.getElementById('pinResolveModal').classList.remove('open');
+  clearResolvePhoto();
   autoSave();
   if(_annCid===cid&&_annPlanIdx===planIdx) renderPins(cid,planIdx);
   _updateProbMeta();
@@ -3283,6 +3605,8 @@ function _getAllPins(){
   state.chantiers.forEach(c=>{
     (c.plans||[]).forEach((plan,pi)=>{
       (plan.pins||[]).forEach(pin=>{
+        // Visibility filter: workers only see general pins or pins assigned to them
+        if(_isWorker && pin.assignedWorkerUid && pin.assignedWorkerUid !== _uid) return;
         result.push({pin,planIdx:pi,planName:plan.name,cid:c.id,chantierName:c.name});
       });
     });
@@ -3324,19 +3648,27 @@ function renderProblemsView(){
       ${g.items.map(x=>{
         const p=x.pin;
         const date=p.createdAt?formatDate(p.createdAt):'';
-        const resolvedHtml=p.resolvedBy?`<div class="prob-resolved">✅ Résolu par ${escHtml(p.resolvedBy)} · ${formatDate(p.resolvedAt)}${p.resolveNote?' — '+escHtml(p.resolveNote):''}</div>`:'';
+        const assignedWorker=p.assignedWorkerUid?_cachedWorkers.find(w=>w.uid===p.assignedWorkerUid):null;
+        const privacyBadge=p.assignedWorkerUid?`<span style="font-size:10px;background:#f0f0f0;color:#666;padding:1px 6px;border-radius:4px;margin-left:6px">🔒 Privé${assignedWorker?' → '+escHtml(assignedWorker.name||assignedWorker.email||''):''}</span>`:'';
+        const problemThumb=p.photo?`<img src="${p.photo}" style="width:44px;height:44px;object-fit:cover;border-radius:5px;margin-left:8px;flex-shrink:0;border:1px solid #ddd" title="Photo du problème">`:''
+        let resolvedHtml='';
+        if(p.resolvedBy){
+          const resolveThumb=p.resolvePhoto?`<img src="${p.resolvePhoto}" style="width:36px;height:36px;object-fit:cover;border-radius:4px;margin-left:6px;vertical-align:middle;border:2px solid #27ae60" title="Photo réparation">`:'';
+          resolvedHtml=`<div class="prob-resolved">✅ Résolu par <b>${escHtml(p.resolvedBy)}</b> · ${formatDate(p.resolvedAt)}${p.resolveNote?' — '+escHtml(p.resolveNote):''}${resolveThumb}</div>`;
+        }
         return `<div class="prob-item ${p.category==='solved'?'solved-item':''}" onclick="jumpToPin(${x.cid},${x.planIdx},${p.id})">
           <div class="prob-dot ${p.category}">${catLabel[p.category]?.split(' ')[0]||'📍'}</div>
-          <div class="prob-body">
-            <div class="prob-title">${escHtml(p.title)}</div>
+          <div class="prob-body" style="flex:1;min-width:0">
+            <div class="prob-title">${escHtml(p.title)}${privacyBadge}</div>
             <div class="prob-meta">${escHtml(x.chantierName)} › ${escHtml(x.planName)} · ${date}</div>
             ${p.note?`<div class="prob-note">${escHtml(p.note)}</div>`:''}
             ${resolvedHtml}
           </div>
+          ${problemThumb}
           <div class="prob-actions" onclick="event.stopPropagation()">
             ${p.category!=='solved'?`<button class="prob-btn resolve" onclick="openResolvePinModal(${x.cid},${x.planIdx},${p.id})">✅ Résoudre</button>`:''}
             <button class="prob-btn view" onclick="jumpToPin(${x.cid},${x.planIdx},${p.id})">👁 Voir</button>
-            <button class="prob-btn del" onclick="deletePinFromPlan(${x.cid},${x.planIdx},${p.id});renderProblemsView()">🗑</button>
+            ${!_isWorker?`<button class="prob-btn del" onclick="deletePinFromPlan(${x.cid},${x.planIdx},${p.id});renderProblemsView()">🗑</button>`:''}
           </div>
         </div>`;
       }).join('')}
@@ -4014,6 +4346,7 @@ document.addEventListener('keydown',function(e){
   if(e.key!=='Escape') return;
   ['addChantierModal','addPhaseModal','addAptModal','bulkRenameAptModal','renameModal','editStepModal','profileModal','stManageModal','stEditModal','stPickerModal','teamModal','workerModal'].forEach(closeModal);
   closePhotoRapport();
+  closeAnnotator();
   closeEmailModal();
   closeRapportModal();
   var ro=document.getElementById('rapportModal'); if(ro) ro.style.display='none';
@@ -4478,6 +4811,7 @@ async function openTeamModal(){
 // 2. chantierPro/users/{adminUid}/workers/{workerUid} → so admin can list all workers (under their own accessible path)
 function _adminWorkersPath(){ return 'chantierPro/users/'+_uid+'/workers'; }
 
+let _cachedWorkers=[]; // global cache for pin assignment
 async function refreshTeamList(){
   const list=document.getElementById('teamList');
   list.innerHTML='<div style="color:var(--ink3);font-size:13px;padding:4px 0">Chargement…</div>';
@@ -4485,6 +4819,7 @@ async function refreshTeamList(){
     // Read from admin's own path — always accessible
     const workersData=await window._fbGet(_adminWorkersPath());
     const workers=Object.entries(workersData||{}).map(([uid,w])=>({uid,...w}));
+    _cachedWorkers=workers; // update global cache
     const meta=document.getElementById('teamMeta');
     if(meta) meta.textContent=workers.length===0?'Aucun':workers.length+' collaborateur'+(workers.length>1?'s':'');
     if(workers.length===0){
@@ -4647,9 +4982,8 @@ document.addEventListener('firebaseReady',()=>{
       render();
       startFirebaseListener();
       if(!_isWorker) setTimeout(()=>refreshTeamList().catch(()=>{}),1500);
-      _fbLoadApiKey(); // auto-load Claude API key from Firebase
+      _fbLoadApiKey();
       initAiChat();
-      // Auto-collapse sidebar on mobile
       if(isMobile()){const sb=document.querySelector('.sidebar');if(sb){sb.classList.remove('mobile-open');const btn=document.getElementById('sidebarToggle');if(btn){btn.classList.remove('mobile-open');}}}
     } else {
       _uid=null;_adminUid=null;_isWorker=false;_workerName='';_allowedChantiers=[];
@@ -5437,15 +5771,31 @@ async function genererRapport(){
 }
 
 // ── Shared professional PDF generator ──
-function _buildProfessionalPdf({title, subtitle, chantierName, dateStr, content, photos, typeLabel}){
-  var logo=state.profile&&state.profile.logo?state.profile.logo:'';
+function _buildProfessionalPdf({title, subtitle, chantierName, dateStr, content, photos, typeLabel, pinLegends}){
+  var logo=(state.profile&&state.profile.logo)?state.profile.logo:(window._defaultLogoB64||'');
   var company=state.profile&&state.profile.companyName?state.profile.companyName:'F Estates';
   var logoHtml=logo
     ?'<img src="'+logo+'" style="height:52px;max-width:180px;object-fit:contain" alt="Logo">'
     :'<div style="font-size:22px;font-weight:800;color:#0b1d4d;letter-spacing:-0.5px">'+escHtml(company)+'</div>';
   var photosHtml='';
   if(photos&&photos.length){
-    var imgs=photos.map(function(src){return'<div class="ph-block"><img src="'+src+'" alt="Photo chantier"></div>';}).join('');
+    var imgs=photos.map(function(src,i){
+      var pins=pinLegends&&pinLegends[i];
+      var legendHtml='';
+      if(pins&&pins.length){
+        legendHtml='<table style="width:100%;border-collapse:collapse;margin-top:9px;font-size:9pt">'
+          +pins.map(function(p){
+            return '<tr>'
+              +'<td style="width:26px;padding:3px 6px 3px 0;vertical-align:middle">'
+                +'<span style="display:inline-flex;width:20px;height:20px;border-radius:50%;background:#e53935;color:#fff;font-weight:700;font-size:10px;align-items:center;justify-content:center;line-height:1">'+p.n+'</span>'
+              +'</td>'
+              +'<td style="padding:3px 0;color:#333;font-style:italic">'+escHtml(p.label||'—')+'</td>'
+            +'</tr>';
+          }).join('')
+          +'</table>';
+      }
+      return '<div class="ph-block"><img src="'+src+'" alt="Photo chantier">'+legendHtml+'</div>';
+    }).join('');
     photosHtml='<div class="ph-grid'+(photos.length===1?' single':'')+'">'+imgs+'</div>';
   }
   var bodyText=content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -5463,7 +5813,8 @@ function _buildProfessionalPdf({title, subtitle, chantierName, dateStr, content,
     '.doc-meta-item strong{color:#fff;display:block;font-size:10pt;margin-bottom:2px;}'+
     '.ph-grid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;padding:24px 40px;background:#f8f9fc;border-bottom:1px solid #e8eaf0;}'+
     '.ph-grid.single{justify-content:flex-start;}'+
-    '.ph-block img{max-height:240px;max-width:100%;border-radius:8px;border:1px solid #dde3ef;box-shadow:0 2px 8px rgba(0,0,0,.1);}'+
+    '.ph-block{flex-shrink:0;max-width:100%;}'+
+    '.ph-block img{max-height:240px;max-width:100%;border-radius:8px;border:1px solid #dde3ef;box-shadow:0 2px 8px rgba(0,0,0,.1);display:block;}'+
     '.doc-body{padding:30px 40px 40px;}'+
     '.doc-body pre{white-space:pre-wrap;font-family:Georgia,serif;font-size:11.5pt;line-height:1.85;color:#1a1a1a;}'+
     '.doc-footer{margin:0 40px;padding:16px 0;border-top:1px solid #e0e0e0;display:flex;justify-content:space-between;align-items:center;font-size:8.5pt;color:#aaa;}'+
@@ -5518,12 +5869,16 @@ function imprimerRapport(){
 //  PHOTO RAPPORT IA
 // ════════════════════════════════════════
 var _photoRapportArr=[]; // array of base64 data URLs
+var _photoRapportPins=[]; // per-photo pin legends: null or [{n,label}]
+// Annotation state
+var _annotPhotoIdx=-1, _annotPins=[], _annotCanvas=null, _annotImg=null;
 
 function openPhotoRapport(){
   var sel=document.getElementById('photoChantierSel');
   sel.innerHTML='<option value="">— Personnalisé —</option>';
   state.chantiers.forEach(function(c){ sel.innerHTML+='<option value="'+c.id+'">'+escHtml(c.name)+'</option>'; });
   _photoRapportArr=[];
+  _photoRapportPins=[];
   _renderPhotoGrid();
   document.getElementById('photoRapportType').value='defaut';
   document.getElementById('photoChantierSel').value='';
@@ -5555,8 +5910,10 @@ function _renderPhotoGrid(){
   label.style.display='none'; grid.style.display='flex';
   addMore.style.display=''; zone.style.borderColor='#7b2ff7'; zone.style.borderStyle='solid';
   grid.innerHTML=_photoRapportArr.map(function(src,i){
-    return '<div style="position:relative;width:72px;height:72px;flex-shrink:0;border-radius:7px;overflow:hidden;border:2px solid #c3b0f0">'+
+    var hasPins=_photoRapportPins[i]&&_photoRapportPins[i].length;
+    return '<div style="position:relative;width:72px;height:72px;flex-shrink:0;border-radius:7px;overflow:hidden;border:2px solid '+(hasPins?'#e53935':'#c3b0f0')+'" title="'+(hasPins?_photoRapportPins[i].length+' repère(s)':'Aucun repère')+'">'+
       '<img src="'+src+'" style="width:100%;height:100%;object-fit:cover">'+
+      '<button onclick="event.stopPropagation();openAnnotator('+i+')" style="position:absolute;bottom:2px;left:2px;background:rgba(229,57,53,.85);border:none;color:#fff;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center" title="Annoter">📍</button>'+
       '<button onclick="event.stopPropagation();_removePhotoAt('+i+')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);border:none;color:#fff;width:18px;height:18px;border-radius:50%;cursor:pointer;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center">×</button>'+
     '</div>';
   }).join('');
@@ -5564,7 +5921,94 @@ function _renderPhotoGrid(){
 
 function _removePhotoAt(i){
   _photoRapportArr.splice(i,1);
+  _photoRapportPins.splice(i,1);
   _renderPhotoGrid();
+}
+
+// ===== PHOTO ANNOTATION =====
+function openAnnotator(idx){
+  _annotPhotoIdx=idx;
+  _annotPins=(_photoRapportPins[idx]||[]).map(function(p){return{x:p.x||0,y:p.y||0,n:p.n,label:p.label||''};});
+  document.getElementById('annotatorOverlay').style.display='flex';
+  var canvas=document.getElementById('annotCanvas');
+  _annotCanvas=canvas;
+  var img=new Image();
+  img.onload=function(){
+    _annotImg=img;
+    var maxW=Math.min(680,(window.innerWidth||800)-80);
+    var maxH=420;
+    var scale=Math.min(maxW/img.naturalWidth, maxH/img.naturalHeight, 1);
+    canvas.width=Math.round(img.naturalWidth*scale);
+    canvas.height=Math.round(img.naturalHeight*scale);
+    _annotDraw();
+  };
+  img.src=_photoRapportArr[idx];
+  _renderPinLegend();
+}
+function closeAnnotator(){
+  document.getElementById('annotatorOverlay').style.display='none';
+  _annotPhotoIdx=-1; _annotPins=[]; _annotImg=null;
+}
+function onAnnotCanvasClick(e){
+  if(!_annotCanvas)return;
+  var rect=_annotCanvas.getBoundingClientRect();
+  var sx=_annotCanvas.width/rect.width, sy=_annotCanvas.height/rect.height;
+  var x=Math.round((e.clientX-rect.left)*sx), y=Math.round((e.clientY-rect.top)*sy);
+  _annotPins.push({x:x,y:y,n:_annotPins.length+1,label:''});
+  _annotDraw(); _renderPinLegend();
+}
+function _annotDraw(){
+  if(!_annotCanvas||!_annotImg)return;
+  var ctx=_annotCanvas.getContext('2d');
+  ctx.clearRect(0,0,_annotCanvas.width,_annotCanvas.height);
+  ctx.drawImage(_annotImg,0,0,_annotCanvas.width,_annotCanvas.height);
+  var r=Math.max(13,Math.min(_annotCanvas.width,_annotCanvas.height)*0.026);
+  _annotPins.forEach(function(pin){
+    ctx.beginPath(); ctx.arc(pin.x,pin.y,r,0,Math.PI*2);
+    ctx.fillStyle='#e53935'; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2.5; ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font='bold '+Math.round(r*0.9)+'px Arial';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(String(pin.n),pin.x,pin.y);
+  });
+}
+function _renderPinLegend(){
+  var leg=document.getElementById('pinLegend');
+  if(!leg)return;
+  if(!_annotPins.length){
+    leg.innerHTML='<div style="color:#aaa;font-size:12px;text-align:center;padding:10px 0">Cliquez sur la photo pour placer un repère numéroté</div>';
+    return;
+  }
+  leg.innerHTML=_annotPins.map(function(pin,i){
+    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">'
+      +'<div style="min-width:26px;height:26px;border-radius:50%;background:#e53935;color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center">'+pin.n+'</div>'
+      +'<input type="text" placeholder="Description repère '+pin.n+'…" value="'+escHtml(pin.label)+'" '
+        +'oninput="_annotPins['+i+'].label=this.value" '
+        +'style="flex:1;padding:6px 10px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:12px;font-family:inherit">'
+      +'<button onclick="_annotRemovePin('+i+')" style="background:none;border:none;color:#e53935;cursor:pointer;font-size:18px;line-height:1;padding:0 4px">×</button>'
+      +'</div>';
+  }).join('');
+}
+function _annotRemovePin(i){
+  _annotPins.splice(i,1);
+  _annotPins.forEach(function(p,idx){p.n=idx+1;});
+  _annotDraw(); _renderPinLegend();
+}
+function undoLastPin(){
+  if(_annotPins.length){_annotPins.pop();_annotDraw();_renderPinLegend();}
+}
+function confirmAnnotation(){
+  if(_annotPhotoIdx<0||!_annotCanvas)return;
+  _photoRapportArr[_annotPhotoIdx]=_annotCanvas.toDataURL('image/jpeg',0.93);
+  _photoRapportPins[_annotPhotoIdx]=_annotPins.length
+    ?_annotPins.map(function(p){return{x:p.x,y:p.y,n:p.n,label:p.label};})
+    :null;
+  closeAnnotator();
+  _renderPhotoGrid();
+  showToast('✅ Annotation enregistrée');
+}
+function clearAllPins(){
+  _annotPins=[]; _annotDraw(); _renderPinLegend();
 }
 
 function onPhotoFilesSelected(e){
@@ -5657,7 +6101,7 @@ function imprimerPhotoRapport(){
   var photosHtml=_photoRapportArr.map(function(src){ return '<div class="photo-block"><img src="'+src+'"></div>'; }).join('');
   var w=window.open('','_blank');
   var dateStr=new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
-  _openPdfWindow(_buildProfessionalPdf({title:meta.typeLabel,chantierName:meta.chantierName,dateStr:dateStr,content:content,photos:_photoRapportArr.slice(),typeLabel:meta.typeLabel}));
+  _openPdfWindow(_buildProfessionalPdf({title:meta.typeLabel,chantierName:meta.chantierName,dateStr:dateStr,content:content,photos:_photoRapportArr.slice(),typeLabel:meta.typeLabel,pinLegends:_photoRapportPins.slice()}));
 }
 
 function partagerWhatsApp(){
@@ -6206,6 +6650,34 @@ async function _aiStreamRequest(key){
   </div>
 </div>
 
+<!-- ═══ PHOTO ANNOTATOR ═══ -->
+<div id="annotatorOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:1500;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:780px;max-height:96vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.4);overflow:hidden">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #eee;flex-shrink:0">
+      <div>
+        <div style="font-weight:700;color:#0b1d4d;font-size:15px">📍 Annoter la photo</div>
+        <div style="font-size:11px;color:#888;margin-top:2px">Cliquez sur la photo pour placer des repères numérotés</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="clearAllPins()" style="padding:7px 14px;background:#fff;border:1.5px solid #ddd;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;color:#555">🗑 Tout effacer</button>
+        <button onclick="undoLastPin()" style="padding:7px 14px;background:#fff;border:1.5px solid #ddd;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;color:#555">↩ Annuler</button>
+        <button onclick="confirmAnnotation()" style="padding:7px 18px;background:#0b1d4d;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:600">✅ Valider</button>
+        <button onclick="closeAnnotator()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;line-height:1;padding:2px 4px">×</button>
+      </div>
+    </div>
+    <!-- Canvas zone -->
+    <div style="background:#f0f0f0;display:flex;justify-content:center;align-items:center;padding:16px;flex-shrink:0;overflow:auto">
+      <canvas id="annotCanvas" onclick="onAnnotCanvasClick(event)" style="max-width:100%;cursor:crosshair;border-radius:8px;box-shadow:0 3px 16px rgba(0,0,0,.25);display:block"></canvas>
+    </div>
+    <!-- Legend -->
+    <div style="padding:14px 20px 18px;overflow-y:auto;flex:1;min-height:80px">
+      <div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Légende — descriptions des repères</div>
+      <div id="pinLegend"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ PHOTO RAPPORT OVERLAY ═══ -->
 <div id="photoRapportOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:800;align-items:center;justify-content:center;padding:1rem" onclick="if(event.target===this)closePhotoRapport()">
   <div style="background:#fff;border-radius:16px;width:100%;max-width:860px;max-height:94vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden">
@@ -6381,4 +6853,6 @@ async function _aiStreamRequest(key){
   </div>
 </div>
 
+<!-- PDF.js for plan annotation -->
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" onload="if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'"></script>
 </body></html>
