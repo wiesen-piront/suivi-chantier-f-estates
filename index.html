@@ -1004,6 +1004,26 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
   </div>
 </div>
 
+<!-- Modal: Compte app pour sous-traitant -->
+<div class="modal-overlay" id="stAccountModal" style="z-index:750">
+  <div class="modal" style="width:380px">
+    <h3 id="stAccountTitle">🔑 Créer un accès app</h3>
+    <input type="hidden" id="stAccountStId">
+    <p id="stAccountDesc" style="font-size:13px;color:var(--ink3);margin:0 0 12px">Ce sous-traitant pourra se connecter et voir ses pins privés assignés.</p>
+    <label>E-mail de connexion *</label>
+    <input type="email" id="stAccountEmail" placeholder="ex. martin@dupont.ch">
+    <div id="stAccountPwRow">
+      <label>Mot de passe *</label>
+      <input type="password" id="stAccountPassword" placeholder="Min. 6 caractères">
+    </div>
+    <div id="stAccountExisting" style="display:none;padding:10px;background:#e8f8ee;border-radius:8px;font-size:13px;color:#27ae60;margin-bottom:8px"></div>
+    <div class="modal-btns" style="margin-top:.75rem">
+      <button class="btn-cancel" onclick="closeModal('stAccountModal');openSTManage()">Annuler</button>
+      <button class="btn-confirm" id="stAccountSaveBtn" onclick="saveSTAccount()">Créer le compte</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Assigner sous-traitant à une étape -->
 <div class="modal-overlay" id="stPickerModal">
   <div class="modal">
@@ -1171,21 +1191,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
       <img id="pinPhotoPreviewImg" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;border:1px solid #ddd">
       <button onclick="clearPinPhoto()" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:13px">×</button>
     </div>
-    <label>Visibilité</label>
-    <select id="pinVisibilityInput" onchange="onPinVisibilityChange(this.value)" style="margin-bottom:6px">
-      <option value="general">🌐 Général — visible par tous</option>
-      <option value="worker">🔒 Privé — visible uniquement par le destinataire</option>
-    </select>
-    <div id="pinWorkerRow" style="display:none">
-      <label>Assigner à un membre de l'équipe (accès app) *</label>
-      <select id="pinWorkerInput">
-        <option value="">— Choisir —</option>
-      </select>
-    </div>
     <label>Assigner à un sous-traitant <span style="font-weight:400;color:var(--ink3)">(optionnel)</span></label>
-    <select id="pinAssignInput">
+    <select id="pinAssignInput" onchange="onPinSTChange(this.value)">
       <option value="">— Non assigné —</option>
     </select>
+    <label>Visibilité</label>
+    <select id="pinVisibilityInput" onchange="onPinVisibilityChange(this.value)" style="margin-bottom:6px">
+      <option value="general">🌐 Général — visible par tous les sous-traitants</option>
+      <option value="worker">🔒 Privé — uniquement le sous-traitant assigné</option>
+    </select>
+    <div id="pinPrivacyWarning" style="display:none;padding:8px 10px;background:#fff8e1;border-radius:7px;font-size:12px;color:#b07d00;margin-bottom:6px">
+      ⚠ Ce sous-traitant n'a pas encore de compte app — il ne pourra pas voir ce pin. <span style="text-decoration:underline;cursor:pointer" onclick="closeModal('pinModal');openSTManage()">Créer un accès →</span>
+    </div>
     <div class="modal-btns" style="margin-top:.5rem">
       <button onclick="document.getElementById('pinModal').classList.remove('open')" style="background:var(--paper2);color:var(--ink);border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif">Annuler</button>
       <button onclick="confirmAddPin()" style="background:var(--accent2);color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600">Ajouter le pin</button>
@@ -3464,7 +3481,23 @@ function onResolvePhotoSelected(input){
 function clearResolvePhoto(){ _resolvePhotoB64=null; document.getElementById('pinResolvePhotoPreview').style.display='none'; document.getElementById('pinResolvePhotoImg').src=''; }
 
 function onPinVisibilityChange(val){
-  document.getElementById('pinWorkerRow').style.display=val==='worker'?'block':'none';
+  // Show warning if "Privé" selected but assigned ST has no account
+  _checkPinPrivacyWarning();
+}
+function onPinSTChange(val){
+  _checkPinPrivacyWarning();
+}
+function _checkPinPrivacyWarning(){
+  const vis=document.getElementById('pinVisibilityInput')?.value;
+  const stId=+document.getElementById('pinAssignInput')?.value||null;
+  const warn=document.getElementById('pinPrivacyWarning');
+  if(!warn)return;
+  if(vis==='worker' && stId){
+    const st=state.sousTraitants.find(s=>s.id===stId);
+    warn.style.display=(st&&!st.uid)?'block':'none';
+  } else {
+    warn.style.display='none';
+  }
 }
 
 function _populateSTSelect(){
@@ -3474,20 +3507,9 @@ function _populateSTSelect(){
   (state.sousTraitants||[]).forEach(st=>{
     const opt=document.createElement('option');
     opt.value=st.id;
-    opt.textContent=(st.name||'?')+(st.company?' ('+st.company+')':'');
+    opt.textContent=(st.name||'?')+(st.company?' ('+st.company+')':'')+(st.uid?' ✅':'');
     sel.appendChild(opt);
   });
-  // Populate worker select
-  const wsel=document.getElementById('pinWorkerInput');
-  if(wsel){
-    wsel.innerHTML='<option value="">— Choisir —</option>';
-    _cachedWorkers.forEach(w=>{
-      const opt=document.createElement('option');
-      opt.value=w.uid;
-      opt.textContent=(w.name||w.email||w.uid);
-      wsel.appendChild(opt);
-    });
-  }
 }
 
 function confirmAddPin(){
@@ -3498,9 +3520,13 @@ function confirmAddPin(){
   const assignSel=document.getElementById('pinAssignInput');
   const assignedSTId=assignSel&&assignSel.value?parseInt(assignSel.value):null;
   const visibility=document.getElementById('pinVisibilityInput')?.value||'general';
-  const workerSel=document.getElementById('pinWorkerInput');
-  const assignedWorkerUid=(visibility==='worker'&&workerSel?.value)?workerSel.value:null;
-  if(visibility==='worker'&&!assignedWorkerUid){showToast('⚠ Choisissez un membre de l\'équipe');return;}
+  // assignedWorkerUid: if privé, use the ST's app account UID
+  let assignedWorkerUid=null;
+  if(visibility==='worker'&&assignedSTId){
+    const st=state.sousTraitants.find(s=>s.id===assignedSTId);
+    assignedWorkerUid=st?.uid||null;
+    if(!assignedWorkerUid){showToast('⚠ Ce sous-traitant n\'a pas de compte app — créez-lui un accès d\'abord');return;}
+  }
   const plan=_annAptMode?_viewerPlan:(getChantier(_annCid)?.plans?.[_annPlanIdx]);
   if(!plan)return;
   plan.pins=plan.pins||[];
@@ -3508,7 +3534,7 @@ function confirmAddPin(){
     id:Date.now(),x:_pendingPinX,y:_pendingPinY,
     title,note,category:cat,
     assignedSTId,
-    assignedWorkerUid:assignedWorkerUid||null,
+    assignedWorkerUid,
     photo:_pinPhotoB64||null,
     createdAt:new Date().toISOString(),
     resolvedBy:null,resolvedAt:null,resolveNote:'',resolvePhoto:null
@@ -3516,7 +3542,7 @@ function confirmAddPin(){
   document.getElementById('pinModal').classList.remove('open');
   clearPinPhoto();
   document.getElementById('pinVisibilityInput').value='general';
-  document.getElementById('pinWorkerRow').style.display='none';
+  document.getElementById('pinPrivacyWarning').style.display='none';
   autoSave();
   renderPins(_annCid,_annPlanIdx);
   renderSidebar();
@@ -3861,13 +3887,18 @@ function renderSTList(){
   if(!state.sousTraitants.length){el.innerHTML='<p style="font-size:13px;color:var(--ink3);text-align:center;padding:1rem">Aucun sous-traitant. Cliquez sur ＋ Ajouter.</p>';return;}
   el.innerHTML=state.sousTraitants.map(st=>{
     const initials=st.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const hasAccount=!!st.uid;
+    const accountBadge=hasAccount
+      ?`<span style="font-size:10px;background:#e8f8ee;color:#27ae60;padding:2px 7px;border-radius:4px;font-weight:600">✅ Compte actif</span>`
+      :`<span style="font-size:10px;background:#f5f5f5;color:#999;padding:2px 7px;border-radius:4px">Pas de compte</span>`;
     return `<div class="st-card">
       <div class="st-avatar">${initials}</div>
       <div class="st-info">
-        <div class="st-name">${escHtml(st.name)}</div>
+        <div class="st-name">${escHtml(st.name)} ${accountBadge}</div>
         <div class="st-meta">${[st.specialty,st.company,st.phone,st.email].filter(Boolean).join(' · ')}</div>
       </div>
       <div class="st-card-btns">
+        <button class="icon-btn" onclick="openSTAccountModal(${st.id})" title="${hasAccount?'Gérer le compte':'Créer un accès app'}" style="background:${hasAccount?'#e8f8ee':'#fff8e1'};color:${hasAccount?'#27ae60':'#b07d00'}">🔑</button>
         <button class="icon-btn rename" onclick="openSTEdit(${st.id})" title="Modifier">✏</button>
         <button class="icon-btn del" onclick="deleteSTConfirm(${st.id})" title="Supprimer">×</button>
       </div>
@@ -3893,7 +3924,15 @@ function saveSTEdit(){
   const id=+document.getElementById('stEditId').value||null;
   const name=document.getElementById('stEditName').value.trim();
   if(!name){showToast('❌ Nom obligatoire');return;}
-  const obj={id:id||Date.now(),name,company:document.getElementById('stEditCompany').value.trim(),specialty:document.getElementById('stEditSpecialty').value.trim(),phone:document.getElementById('stEditPhone').value.trim(),email:document.getElementById('stEditEmail').value.trim()};
+  const existing=id?state.sousTraitants.find(s=>s.id===id):null;
+  const obj={
+    id:id||Date.now(),name,
+    company:document.getElementById('stEditCompany').value.trim(),
+    specialty:document.getElementById('stEditSpecialty').value.trim(),
+    phone:document.getElementById('stEditPhone').value.trim(),
+    email:document.getElementById('stEditEmail').value.trim(),
+    uid:existing?.uid||null  // preserve existing account UID
+  };
   if(id){const idx=state.sousTraitants.findIndex(s=>s.id===id);if(idx>=0)state.sousTraitants[idx]=obj;}
   else state.sousTraitants.push(obj);
   closeModal('stEditModal');
@@ -3901,6 +3940,73 @@ function saveSTEdit(){
   showToast(id?'✏ Sous-traitant modifié':'✓ Sous-traitant ajouté');
   openSTManage();
 }
+function openSTAccountModal(stId){
+  const st=state.sousTraitants.find(s=>s.id===stId);
+  if(!st)return;
+  closeModal('stManageModal');
+  document.getElementById('stAccountStId').value=stId;
+  document.getElementById('stAccountEmail').value=st.email||'';
+  document.getElementById('stAccountPassword').value='';
+  const existing=document.getElementById('stAccountExisting');
+  const pwRow=document.getElementById('stAccountPwRow');
+  const saveBtn=document.getElementById('stAccountSaveBtn');
+  if(st.uid){
+    document.getElementById('stAccountTitle').textContent='🔑 Compte de '+escHtml(st.name);
+    existing.style.display='block';
+    existing.innerHTML='✅ Compte actif · UID: <code style="font-size:11px">'+st.uid.slice(0,12)+'…</code><br><small style="color:#555">Pour changer le mot de passe, utilisez la gestion Firebase.</small>';
+    pwRow.style.display='none';
+    saveBtn.textContent='Mettre à jour l\'e-mail';
+  } else {
+    document.getElementById('stAccountTitle').textContent='🔑 Créer accès pour '+escHtml(st.name);
+    existing.style.display='none';
+    pwRow.style.display='';
+    saveBtn.textContent='Créer le compte';
+  }
+  document.getElementById('stAccountModal').classList.add('open');
+  setTimeout(()=>document.getElementById('stAccountEmail').focus(),100);
+}
+
+async function saveSTAccount(){
+  const stId=+document.getElementById('stAccountStId').value;
+  const st=state.sousTraitants.find(s=>s.id===stId);
+  if(!st)return;
+  const email=document.getElementById('stAccountEmail').value.trim().toLowerCase();
+  const password=document.getElementById('stAccountPassword').value;
+  if(!email){showToast('⚠ E-mail requis');return;}
+  const btn=document.getElementById('stAccountSaveBtn');
+  btn.disabled=true;btn.textContent='En cours…';
+  try{
+    if(!st.uid){
+      // Create new account
+      if(!password||password.length<6){showToast('⚠ Mot de passe: min. 6 caractères');btn.disabled=false;btn.textContent='Créer le compte';return;}
+      showToast('⏳ Création du compte…');
+      const workerUid=await window._fbCreateWorkerAccount(email,password);
+      // Register in workerMap so the ST can log in
+      const workerEntry={adminUid:_adminUid||_uid,name:st.name,email,allowedChantiers:[],isSousTraitant:true,stId,createdAt:Date.now()};
+      await window._fbSet('workers/'+(_adminUid||_uid)+'/'+workerUid,workerEntry);
+      await window._fbSet('workerMap/'+workerUid,workerEntry);
+      // Save UID to sous-traitant record
+      const idx=state.sousTraitants.findIndex(s=>s.id===stId);
+      if(idx>=0){state.sousTraitants[idx]={...state.sousTraitants[idx],uid:workerUid};}
+      autoSave();
+      showToast('✅ Compte créé pour '+st.name);
+    } else {
+      // Update email in workerMap entry only (can't change Auth email client-side)
+      const existing=await window._fbGet('workerMap/'+st.uid).catch(()=>({}));
+      await window._fbSet('workerMap/'+st.uid,{...existing,email});
+      showToast('✅ E-mail mis à jour');
+    }
+    closeModal('stAccountModal');
+    openSTManage();
+  }catch(e){
+    console.error(e);
+    const msg=e.code==='auth/email-already-in-use'?'Cet e-mail est déjà utilisé.':e.code==='auth/invalid-email'?'E-mail invalide.':(e.message||'Erreur');
+    showToast('⚠ '+msg);
+    btn.disabled=false;
+    btn.textContent=st.uid?'Mettre à jour':'Créer le compte';
+  }
+}
+
 function deleteSTConfirm(id){
   const sid=String(id);
   const st=state.sousTraitants.find(s=>String(s.id)===sid);
