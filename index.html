@@ -730,7 +730,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 
 <script type="module">
   import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, get, onValue, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, set, get, onValue, off, goOffline, goOnline } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getStorage, ref as sRef, uploadString, getDownloadURL, deleteObject, getBytes } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
   const firebaseConfig={apiKey:"AIzaSyAunYOcn1sVJkS3UlBuOJsD1NS1ZPzk34o",authDomain:"chantier-98c12.firebaseapp.com",databaseURL:"https://chantier-98c12-default-rtdb.europe-west1.firebasedatabase.app",projectId:"chantier-98c12",storageBucket:"chantier-98c12.firebasestorage.app",messagingSenderId:"108133717293",appId:"1:108133717293:web:ea39231135d380ec766fa4"};
@@ -740,10 +740,56 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
   window._stUrl=(path)=>getDownloadURL(sRef(storage,path));
   window._stGetBytes=(path)=>getBytes(sRef(storage,path)); // returns Uint8Array, no CORS issue
   window._stDelete=(path)=>deleteObject(sRef(storage,path)).catch(()=>{});
-  window._fbSet=(path,data)=>set(ref(db,path),data);
-  window._fbGet=(path)=>get(ref(db,path)).then(snap=>snap.val());
-  window._fbListen=(path,cb)=>onValue(ref(db,path),snap=>cb(snap.val()));
+  // ── OFFLINE PERSISTENCE ──────────────────────────────────────────────
+  const _CP='chpro_v1_'; // localStorage key prefix
+  function _cSave(path,val){try{localStorage.setItem(_CP+path,JSON.stringify({v:val,t:Date.now()}));}catch(e){}}
+  function _cLoad(path){try{const r=localStorage.getItem(_CP+path);return r?JSON.parse(r).v:undefined;}catch(e){return undefined;}}
+
+  window._fbSet=(path,data)=>{
+    _cSave(path,data); // always cache writes locally
+    return set(ref(db,path),data);
+  };
+  window._fbGet=(path)=>{
+    if(!navigator.onLine){
+      const cached=_cLoad(path);
+      return Promise.resolve(cached!==undefined?cached:null);
+    }
+    return get(ref(db,path)).then(snap=>{const v=snap.val();_cSave(path,v);return v;});
+  };
+  window._fbListen=(path,cb)=>{
+    // serve cached data immediately so UI shows up offline
+    const cached=_cLoad(path);
+    if(cached!==undefined) cb(cached);
+    return onValue(ref(db,path),snap=>{const v=snap.val();_cSave(path,v);cb(v);});
+  };
   window._fbOff=(path)=>off(ref(db,path));
+
+  // ── ONLINE / OFFLINE EVENTS ──────────────────────────────────────────
+  function _applyNetworkState(online){
+    if(online){goOnline(db);}else{goOffline(db);}
+    // update UI via existing setSyncStatus if available
+    if(typeof setSyncStatus==='function') setSyncStatus(online?'synced':'offline');
+    // banner at bottom
+    let bn=document.getElementById('_offlineBanner');
+    if(!bn){
+      bn=document.createElement('div');bn.id='_offlineBanner';
+      Object.assign(bn.style,{position:'fixed',bottom:'0',left:'0',right:'0',
+        padding:'10px 16px',textAlign:'center',fontSize:'13px',fontWeight:'600',
+        zIndex:'9999',transition:'transform .3s',fontFamily:'DM Sans,sans-serif'});
+      document.body.appendChild(bn);
+    }
+    if(!online){
+      bn.textContent='📵 Hors ligne — données locales disponibles, modifications sauvegardées';
+      Object.assign(bn.style,{background:'#92400e',color:'#fff',transform:'translateY(0)'});
+    } else {
+      bn.textContent='✅ Connexion rétablie — synchronisation en cours…';
+      Object.assign(bn.style,{background:'#1a6b3a',color:'#fff',transform:'translateY(0)'});
+      setTimeout(()=>{bn.style.transform='translateY(100%)';},3000);
+    }
+  }
+  window.addEventListener('online', ()=>_applyNetworkState(true));
+  window.addEventListener('offline',()=>_applyNetworkState(false));
+  if(!navigator.onLine) setTimeout(()=>_applyNetworkState(false),1000);
   window._fbSignIn=(e,p)=>signInWithEmailAndPassword(auth,e,p);
   window._fbSignOut=()=>signOut(auth);
   window._fbOnAuth=(cb)=>onAuthStateChanged(auth,cb);
