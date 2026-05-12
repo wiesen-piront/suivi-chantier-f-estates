@@ -4870,16 +4870,43 @@ function _renderKundeDocs(k){
     const isPdf=/\.pdf$/i.test(d.name);
     const icon=isPdf?'📄':isImg?'🖼':'📎';
     const size=d.size?(d.size>1024*1024?(d.size/1024/1024).toFixed(1)+' Mo':(d.size/1024).toFixed(0)+' Ko'):'';
-    return `<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px solid var(--paper2)">
+    const btnStyle='background:none;border:1px solid var(--paper3);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--ink2);transition:all .15s';
+    const actions=d.storageUrl?`
+      <button onclick="openKundeDoc('${escHtml(d.storageUrl)}','${escHtml(d.name)}')" style="${btnStyle}" title="Ouvrir dans un nouvel onglet">👁 Ouvrir</button>
+      <button onclick="downloadKundeDoc('${escHtml(d.storageUrl)}','${escHtml(d.name)}')" style="${btnStyle}" title="Télécharger">⬇ Télécharger</button>
+      <button onclick="printKundeDoc('${escHtml(d.storageUrl)}')" style="${btnStyle}" title="Imprimer">🖨 Imprimer</button>
+    `:'<span style="font-size:11px;color:var(--ink3);font-style:italic">Chargement…</span>';
+    return `<div style="display:flex;align-items:center;gap:.5rem;padding:.65rem 0;border-bottom:1px solid var(--paper2);flex-wrap:wrap">
       <span style="font-size:18px">${icon}</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(d.name)}</div>
+      <div style="flex:1;min-width:120px">
+        <div style="font-size:13px;font-weight:600;word-break:break-word">${escHtml(d.name)}</div>
         <div style="font-size:11px;color:var(--ink3)">${size}${d.addedAt?' · '+formatDate(d.addedAt):''}</div>
       </div>
-      ${d.storageUrl?`<button onclick="openKundeDoc('${escHtml(d.storageUrl)}','${escHtml(d.name)}')" style="background:none;border:1px solid var(--paper3);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--ink2)">Ouvrir</button>`:''}
-      <button onclick="deleteKundeDoc(${k.id},'${d.id}')" style="background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;padding:2px 6px" title="Supprimer">×</button>
+      <div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center">
+        ${actions}
+        <button onclick="deleteKundeDoc(${k.id},'${d.id}')" style="background:none;border:none;color:var(--red);font-size:15px;cursor:pointer;padding:2px 6px" title="Supprimer">×</button>
+      </div>
     </div>`;
   }).join('');
+}
+
+function openKundeDoc(url){ window.open(url,'_blank'); }
+
+async function downloadKundeDoc(url,name){
+  try{
+    const res=await fetch(url);
+    const blob=await res.blob();
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }catch(e){ window.open(url,'_blank'); }
+}
+
+function printKundeDoc(url){
+  const w=window.open(url,'_blank');
+  if(w) w.addEventListener('load',()=>{ try{ w.print(); }catch(e){} });
 }
 
 async function uploadKundeDocs(kundeId, input){
