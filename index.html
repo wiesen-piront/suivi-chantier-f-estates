@@ -727,6 +727,63 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
   .step-block,.kpi-card,.proj-card{box-shadow:none;break-inside:avoid;border:1px solid #ddd;}
   .prereqs{display:block!important;}.project-notes-body{display:block!important;}
 }
+
+/* ══ KUNDEN MODULE ══════════════════════════════════════════════ */
+.kunden-view{padding:2rem;max-width:1100px;margin:0 auto;}
+.kunden-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:.75rem;}
+.kunden-title{font-size:22px;font-weight:700;color:var(--ink);}
+.kunden-search{padding:9px 14px;border:1.5px solid var(--paper3);border-radius:9px;font-size:13px;font-family:inherit;width:240px;background:#fff;transition:border .15s;}
+.kunden-search:focus{outline:none;border-color:var(--accent2);}
+.kunden-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;}
+.kunden-card{background:#fff;border:1.5px solid var(--paper3);border-radius:var(--radius-lg);padding:1.25rem;cursor:pointer;transition:all .15s;box-shadow:var(--shadow);}
+.kunden-card:hover{border-color:var(--accent2);box-shadow:var(--shadow-md);transform:translateY(-1px);}
+.kunden-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.75rem;}
+.kunden-name{font-size:15px;font-weight:700;color:var(--ink);}
+.kunden-typ-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+.ktyp-privat{background:#ddf0e0;color:#1a6b3a;}
+.ktyp-promoteur{background:#e0e8f8;color:#0b1d4d;}
+.ktyp-entreprise{background:#f5ece0;color:#9a7040;}
+.kunden-card-meta{font-size:12px;color:var(--ink3);margin-bottom:.5rem;}
+.kunden-card-action{font-size:12px;color:var(--ink2);background:var(--paper2);border-radius:6px;padding:6px 10px;margin-top:.5rem;}
+.kunden-card-projs{display:flex;flex-wrap:wrap;gap:4px;margin-top:.6rem;}
+.kunden-proj-tag{font-size:11px;background:var(--paper2);border:1px solid var(--paper3);border-radius:5px;padding:2px 8px;color:var(--ink2);}
+.kunden-empty{text-align:center;padding:4rem 2rem;color:var(--ink3);}
+.kunden-empty-icon{font-size:3rem;margin-bottom:1rem;}
+
+/* Kunden Detail */
+.kunden-detail{padding:2rem;max-width:760px;margin:0 auto;}
+.kunden-detail-header{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;}
+.kunden-detail-back{background:none;border:1.5px solid var(--paper3);border-radius:8px;padding:7px 14px;font-size:13px;font-family:inherit;cursor:pointer;color:var(--ink2);transition:all .15s;}
+.kunden-detail-back:hover{border-color:var(--accent2);color:var(--ink);}
+.kunden-detail-name{font-size:20px;font-weight:700;flex:1;}
+.kunden-detail-del{background:none;border:1.5px solid rgba(138,26,26,.3);color:var(--red);border-radius:8px;padding:7px 14px;font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s;}
+.kunden-detail-del:hover{background:var(--red-bg);}
+.kunden-field-group{background:#fff;border:1.5px solid var(--paper3);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem;}
+.kunden-field-group h4{font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:1rem;}
+.kunden-field-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;}
+.kunden-field-row.single{grid-template-columns:1fr;}
+.kunden-label{font-size:12px;font-weight:600;color:var(--ink2);display:block;margin-bottom:4px;}
+.kunden-input{width:100%;padding:9px 12px;border:1.5px solid var(--paper3);border-radius:8px;font-size:13px;font-family:inherit;background:#fff;transition:border .15s;}
+.kunden-input:focus{outline:none;border-color:var(--accent2);}
+select.kunden-input{cursor:pointer;}
+textarea.kunden-input{resize:vertical;min-height:80px;line-height:1.5;}
+.kunden-save-btn{width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s;margin-top:.5rem;}
+.kunden-save-btn:hover{background:var(--accent2);}
+.kunden-linked-proj{background:#fff;border:1.5px solid var(--paper3);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem;}
+.kunden-linked-proj h4{font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:1rem;}
+.kunden-proj-item{display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--paper2);}
+.kunden-proj-item:last-child{border-bottom:none;}
+.kunden-proj-prog{flex:1;}
+.kunden-proj-prog-bar{height:5px;background:var(--paper3);border-radius:3px;margin-top:4px;}
+.kunden-proj-prog-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .3s;}
+.kunden-proj-link{background:none;border:none;color:var(--accent2);font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline;}
+
+/* Kunde zuweisen in project */
+.kunde-assign-row{display:flex;align-items:center;gap:.5rem;margin-top:.4rem;}
+.kunde-assign-label{font-size:12px;color:var(--ink3);}
+.kunde-assign-select{padding:5px 10px;border:1.5px solid var(--paper3);border-radius:7px;font-size:12px;font-family:inherit;background:#fff;cursor:pointer;color:var(--ink);}
+.kunde-assign-select:focus{outline:none;border-color:var(--accent2);}
+@media(max-width:700px){.kunden-view,.kunden-detail{padding:1rem;}.kunden-grid{grid-template-columns:1fr;}.kunden-field-row{grid-template-columns:1fr;}.kunden-search{width:100%;}}
 </style>
 
 <script type="module">
@@ -865,6 +922,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
       <div class="nav-icon" style="background:#fdecea">📍</div>
       <div class="nav-info"><div class="nav-name">Problèmes ouverts</div><div class="nav-meta" id="probMeta">—</div></div>
     </div>
+    <div class="nav-item" id="navKunden" onclick="showKunden();closeSidebarMobile()">
+      <div class="nav-icon" style="background:#e8f0fe">👥</div>
+      <div class="nav-info"><div class="nav-name">Clients</div><div class="nav-meta" id="kundenNavMeta">—</div></div>
+    </div>
 
     <div class="nav-item" id="navTeam" onclick="openTeamModal()" style="display:none">
       <div class="nav-icon" style="background:#e8f5e9">👥</div>
@@ -893,6 +954,35 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
   <main class="main" id="mainContent">
     <div class="empty-state"><div class="es-icon">⏳</div><h3>Chargement…</h3></div>
   </main>
+</div>
+
+<!-- Modal: Kunde hinzufügen -->
+<div class="modal-overlay" id="kundeModal">
+  <div class="modal">
+    <h3 id="kundeModalTitle">Nouveau client</h3>
+    <input type="hidden" id="kundeModalId">
+    <label>Nom <span style="color:var(--red)">*</span></label>
+    <input type="text" id="kundeModalName" placeholder="Nom du client…">
+    <label>Type</label>
+    <select id="kundeModalTyp">
+      <option value="Privat">Privat</option>
+      <option value="Promoteur">Promoteur</option>
+      <option value="Entreprise">Entreprise</option>
+    </select>
+    <label>Téléphone</label>
+    <input type="tel" id="kundeModalTel" placeholder="+352 …">
+    <label>E-mail</label>
+    <input type="email" id="kundeModalEmail" placeholder="client@email.com">
+    <label>Statut</label>
+    <select id="kundeModalStatus">
+      <option value="Aktiv">Actif</option>
+      <option value="Abgeschlossen">Clôturé</option>
+    </select>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('kundeModal')">Annuler</button>
+      <button class="btn-confirm" onclick="saveKundeModal()">Enregistrer</button>
+    </div>
+  </div>
 </div>
 
 <!-- Modal: Nouveau chantier -->
@@ -1453,7 +1543,7 @@ async function doLogin(){
       _allowedChantiers=sess.allowedChantiers||[];_workerName=sess.workerName||'';
       hideLoginScreen({email:sess.email});
       setSyncStatus('offline');
-      state={chantiers:[],sousTraitants:[],profile:{logo:null,companyName:''},plannings:[],currentView:'dashboard',currentChantierId:null,currentPhaseId:null,currentPlanningId:null};
+      state={chantiers:[],sousTraitants:[],profile:{logo:null,companyName:''},plannings:[],kunden:[],currentView:'dashboard',currentChantierId:null,currentPhaseId:null,currentPlanningId:null,currentKundeId:null};
       render();startFirebaseListener();initAiChat();
       _applyNetworkState(false);
       return;
@@ -1483,7 +1573,7 @@ function hideLoginScreen(user){
 // ════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════
-let state={ chantiers:[], sousTraitants:[], profile:{ logo:null, companyName:'' }, currentView:'dashboard', currentChantierId:null, currentPhaseId:null };
+let state={ chantiers:[], sousTraitants:[], profile:{ logo:null, companyName:'' }, kunden:[], currentView:'dashboard', currentChantierId:null, currentPhaseId:null };
 // Pre-load default logo as base64 so it works inside PDF popup windows
 window._defaultLogoB64=null;
 (function(){
@@ -1665,6 +1755,10 @@ function renderSidebar(){
   if(navDocs) navDocs.classList.toggle('active',state.currentView==='documents');
   const docsM=document.getElementById('docsNavMeta');
   if(docsM){ const dc=(state.documents||[]).length; docsM.textContent=dc===0?'—':dc+' document'+(dc>1?'s':''); }
+  const navK=document.getElementById('navKunden');
+  if(navK) navK.classList.toggle('active',state.currentView==='kunden');
+  const kundenM=document.getElementById('kundenNavMeta');
+  if(kundenM){ const kc=(state.kunden||[]).length; kundenM.textContent=kc===0?'—':kc+' client'+(kc>1?'s':''); }
   const td=state.chantiers.reduce((a,c)=>a+c.phases.reduce((b,p)=>b+p.steps.filter(s=>s.done).length,0),0);
   const tt=state.chantiers.reduce((a,c)=>a+c.phases.reduce((b,p)=>b+p.steps.length,0),0);
   document.getElementById('dashMeta').textContent=state.chantiers.length===0?'Aucun chantier':`${state.chantiers.length} chantier${state.chantiers.length>1?'s':''} · ${td}/${tt}`;
@@ -1932,6 +2026,14 @@ function renderChecklist(cid,pid){
             placeholder="Maître d'ouvrage…"
             oninput="saveMainContact(${cid},this.value)"
             title="Contact principal / Maître d'ouvrage">
+        </div>
+        <div class="kunde-assign-row">
+          <span class="kunde-assign-label">👥 Client:</span>
+          <select class="kunde-assign-select" onchange="assignKundeToPhase(${cid},${pid},this.value)">
+            <option value="">— Aucun —</option>
+            ${(state.kunden||[]).map(k=>`<option value="${k.id}" ${ph.kundeId===k.id?'selected':''}>${escHtml(k.name)}</option>`).join('')}
+          </select>
+          ${ph.kundeId?`<button onclick="showKundenDetail(${ph.kundeId})" style="background:none;border:none;color:var(--accent2);font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline">Voir →</button>`:''}
         </div>
       </div>
       <div class="checklist-header-btns">
@@ -4591,16 +4693,340 @@ function closeSidebarMobile(){
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 function showToast(msg){ const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500); }
 
-function render(){ updateHeaderLogo(); renderSidebar(); if(state.currentView==='dashboard')renderDashboard(); else if(state.currentView==='project')renderChecklist(state.currentChantierId,state.currentPhaseId); else if(state.currentView==='planning')renderPlanningView(); else if(state.currentView==='documents')renderDocumentsView(); }
+function render(){ updateHeaderLogo(); renderSidebar(); if(state.currentView==='dashboard')renderDashboard(); else if(state.currentView==='project')renderChecklist(state.currentChantierId,state.currentPhaseId); else if(state.currentView==='planning')renderPlanningView(); else if(state.currentView==='documents')renderDocumentsView(); else if(state.currentView==='kunden')renderKundenView(); else if(state.currentView==='kundenDetail')renderKundenDetail(state.currentKundeId); }
+
+// ════════════════════════════════════════
+//  KUNDEN MODULE
+// ════════════════════════════════════════
+function _kundenFbPath(){ return 'chantierPro/users/'+(_adminUid||_uid)+'/kunden'; }
+
+async function _kundenLoad(){
+  if(!window._fbGet||!_uid) return;
+  try{
+    const raw=await window._fbGet(_kundenFbPath());
+    state.kunden=raw?Object.values(raw):[];
+  }catch(e){ state.kunden=[]; }
+}
+
+async function _kundenSave(k){
+  if(!window._fbSet||!_uid) return;
+  await window._fbSet(_kundenFbPath()+'/'+k.id, k);
+}
+
+async function _kundenDelete(id){
+  if(!window._fbSet||!_uid) return;
+  await window._fbSet(_kundenFbPath()+'/'+id, null);
+}
+
+function showKunden(){
+  state.currentView='kunden';
+  state.currentKundeId=null;
+  render();
+}
+
+function showKundenDetail(id){
+  state.currentView='kundenDetail';
+  state.currentKundeId=id;
+  render();
+}
+
+let _kundenSearch='';
+
+function renderKundenView(){
+  const m=document.getElementById('mainContent');
+  const kunden=state.kunden||[];
+  const q=_kundenSearch.toLowerCase();
+  const filtered=q?kunden.filter(k=>(k.name||'').toLowerCase().includes(q)):kunden;
+
+  const grid=filtered.length===0
+    ?`<div class="kunden-empty"><div class="kunden-empty-icon">👥</div><p>${q?'Aucun résultat pour "'+escHtml(q)+'"':'Aucun client enregistré.'}</p></div>`
+    :filtered.map(k=>{
+      const projs=_kundenLinkedProjects(k);
+      const nextAction=k.naechsteAktion?`<div class="kunden-card-action">📅 ${escHtml(k.naechsteAktion)}${k.naechsteAktionDatum?' — '+formatDate(k.naechsteAktionDatum):''}</div>`:'';
+      const projTags=projs.length?`<div class="kunden-card-projs">${projs.map(p=>`<span class="kunden-proj-tag">🏗 ${escHtml(p.name)}</span>`).join('')}</div>`:'';
+      return `<div class="kunden-card" onclick="showKundenDetail(${k.id})">
+        <div class="kunden-card-top">
+          <div class="kunden-name">${escHtml(k.name)}</div>
+          <span class="kunden-typ-badge ktyp-${(k.typ||'privat').toLowerCase()}">${escHtml(k.typ||'Privat')}</span>
+        </div>
+        <div class="kunden-card-meta">${k.email?'✉ '+escHtml(k.email)+'&nbsp;&nbsp;':''}${k.telefon?'📞 '+escHtml(k.telefon):''}</div>
+        ${nextAction}${projTags}
+      </div>`;
+    }).join('');
+
+  m.innerHTML=`<div class="kunden-view">
+    <div class="kunden-header">
+      <div class="kunden-title">👥 Kunden <span style="font-size:14px;font-weight:400;color:var(--ink3)">${kunden.length} client${kunden.length!==1?'s':''}</span></div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+        <input class="kunden-search" placeholder="🔍 Rechercher…" value="${escHtml(_kundenSearch)}"
+          oninput="_kundenSearch=this.value;renderKundenView()">
+        <button class="back-btn" style="background:var(--accent);color:#fff;border-color:var(--accent)" onclick="openKundeModal()">＋ Client</button>
+      </div>
+    </div>
+    <div class="kunden-grid">${grid}</div>
+  </div>`;
+}
+
+function renderKundenDetail(id){
+  const m=document.getElementById('mainContent');
+  const k=( state.kunden||[]).find(x=>x.id===id);
+  if(!k){showKunden();return;}
+  const projs=_kundenLinkedProjects(k);
+
+  const projsHtml=projs.length===0
+    ?`<p style="font-size:13px;color:var(--ink3)">Aucun projet lié.</p>`
+    :projs.map(p=>{
+      const pct=p.prog||0;
+      return `<div class="kunden-proj-item">
+        <div style="font-size:18px">${p.icon||'🏗'}</div>
+        <div class="kunden-proj-prog">
+          <div style="font-size:13px;font-weight:600">${escHtml(p.name)}</div>
+          <div style="font-size:11px;color:var(--ink3)">${p.done}/${p.total} étapes — ${pct}%</div>
+          <div class="kunden-proj-prog-bar"><div class="kunden-proj-prog-fill" style="width:${pct}%"></div></div>
+        </div>
+        <button class="kunden-proj-link" onclick="showProject(${p.cid},${p.pid})">Ouvrir →</button>
+      </div>`;
+    }).join('');
+
+  m.innerHTML=`<div class="kunden-detail">
+    <div class="kunden-detail-header">
+      <button class="kunden-detail-back" onclick="showKunden()">← Kunden</button>
+      <div class="kunden-detail-name">${escHtml(k.name)} <span class="kunden-typ-badge ktyp-${(k.typ||'privat').toLowerCase()}" style="font-size:11px">${escHtml(k.typ||'Privat')}</span></div>
+      <button class="kunden-detail-del" onclick="deleteKunde(${k.id})">🗑 Supprimer</button>
+    </div>
+
+    <div class="kunden-field-group">
+      <h4>Informations</h4>
+      <div class="kunden-field-row">
+        <div><label class="kunden-label">Nom</label>
+          <input class="kunden-input" value="${escHtml(k.name||'')}" oninput="updateKundeField(${k.id},'name',this.value)"></div>
+        <div><label class="kunden-label">Type</label>
+          <select class="kunden-input" onchange="updateKundeField(${k.id},'typ',this.value)">
+            ${['Privat','Promoteur','Entreprise'].map(t=>`<option ${k.typ===t?'selected':''}>${t}</option>`).join('')}
+          </select></div>
+      </div>
+      <div class="kunden-field-row">
+        <div><label class="kunden-label">Téléphone</label>
+          <input class="kunden-input" value="${escHtml(k.telefon||'')}" oninput="updateKundeField(${k.id},'telefon',this.value)"></div>
+        <div><label class="kunden-label">E-mail</label>
+          <input class="kunden-input" type="email" value="${escHtml(k.email||'')}" oninput="updateKundeField(${k.id},'email',this.value)"></div>
+      </div>
+      <div class="kunden-field-row">
+        <div><label class="kunden-label">Statut</label>
+          <select class="kunden-input" onchange="updateKundeField(${k.id},'status',this.value)">
+            ${['Aktiv','Abgeschlossen'].map(s=>`<option ${k.status===s?'selected':''}>${s}</option>`).join('')}
+          </select></div>
+        <div><label class="kunden-label">Dernier contact</label>
+          <input class="kunden-input" type="date" value="${k.letzterKontakt||''}" oninput="updateKundeField(${k.id},'letzterKontakt',this.value)"></div>
+      </div>
+    </div>
+
+    <div class="kunden-field-group">
+      <h4>Prochaine action</h4>
+      <div class="kunden-field-row">
+        <div><label class="kunden-label">Description</label>
+          <input class="kunden-input" value="${escHtml(k.naechsteAktion||'')}" placeholder="Ex: Envoyer devis…" oninput="updateKundeField(${k.id},'naechsteAktion',this.value)"></div>
+        <div><label class="kunden-label">Date</label>
+          <input class="kunden-input" type="date" value="${k.naechsteAktionDatum||''}" oninput="updateKundeField(${k.id},'naechsteAktionDatum',this.value)"></div>
+      </div>
+    </div>
+
+    <div class="kunden-field-group">
+      <h4>Notizen</h4>
+      <div class="kunden-field-row single">
+        <div><textarea class="kunden-input" rows="4" placeholder="Notes internes…" oninput="updateKundeField(${k.id},'notizen',this.value)">${escHtml(k.notizen||'')}</textarea></div>
+      </div>
+    </div>
+
+    <div class="kunden-linked-proj">
+      <h4>Documents</h4>
+      <div id="kundeDocsArea_${k.id}">${_renderKundeDocs(k)}</div>
+      <label style="display:inline-flex;align-items:center;gap:6px;margin-top:.75rem;padding:8px 14px;background:var(--paper2);border:1.5px dashed var(--paper3);border-radius:8px;cursor:pointer;font-size:13px;color:var(--ink2);transition:border .15s" onmouseover="this.style.borderColor='var(--accent2)'" onmouseout="this.style.borderColor='var(--paper3)'">
+        📎 Ajouter un document
+        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" multiple style="display:none" onchange="uploadKundeDocs(${k.id},this)">
+      </label>
+    </div>
+
+    <div class="kunden-linked-proj">
+      <h4>Projets liés</h4>
+      ${projsHtml}
+    </div>
+  </div>`;
+}
+
+function _renderKundeDocs(k){
+  const docs=k.documents||[];
+  if(!docs.length) return `<p style="font-size:13px;color:var(--ink3)">Aucun document.</p>`;
+  return docs.map(d=>{
+    const isImg=/\.(jpg|jpeg|png|gif|webp)$/i.test(d.name);
+    const isPdf=/\.pdf$/i.test(d.name);
+    const icon=isPdf?'📄':isImg?'🖼':'📎';
+    const size=d.size?(d.size>1024*1024?(d.size/1024/1024).toFixed(1)+' Mo':(d.size/1024).toFixed(0)+' Ko'):'';
+    return `<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem 0;border-bottom:1px solid var(--paper2)">
+      <span style="font-size:18px">${icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(d.name)}</div>
+        <div style="font-size:11px;color:var(--ink3)">${size}${d.addedAt?' · '+formatDate(d.addedAt):''}</div>
+      </div>
+      ${d.storageUrl?`<button onclick="openKundeDoc('${escHtml(d.storageUrl)}','${escHtml(d.name)}')" style="background:none;border:1px solid var(--paper3);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--ink2)">Ouvrir</button>`:''}
+      <button onclick="deleteKundeDoc(${k.id},'${d.id}')" style="background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;padding:2px 6px" title="Supprimer">×</button>
+    </div>`;
+  }).join('');
+}
+
+async function uploadKundeDocs(kundeId, input){
+  const k=(state.kunden||[]).find(x=>x.id===kundeId);
+  if(!k||!input.files.length) return;
+  if(!k.documents) k.documents=[];
+  const files=Array.from(input.files);
+  input.value='';
+  for(const f of files){
+    const docId='kdoc_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const doc={id:docId,name:f.name,size:f.size,type:f.type,addedAt:new Date().toISOString(),storageUrl:null};
+    k.documents.push(doc);
+    const area=document.getElementById('kundeDocsArea_'+kundeId);
+    if(area) area.innerHTML=_renderKundeDocs(k);
+    const reader=new FileReader();
+    reader.onload=async ev=>{
+      try{
+        const path='kundenDocs/'+(_adminUid||_uid)+'/'+kundeId+'/'+docId;
+        await window._stUpload(path,ev.target.result,f.type);
+        doc.storageUrl=await window._stUrl(path);
+      }catch(e){ doc.storageUrl=''; }
+      await _kundenSave(k);
+      const a2=document.getElementById('kundeDocsArea_'+kundeId);
+      if(a2) a2.innerHTML=_renderKundeDocs(k);
+      showToast('📎 '+f.name+' ajouté');
+    };
+    reader.readAsDataURL(f);
+  }
+}
+
+async function deleteKundeDoc(kundeId,docId){
+  const k=(state.kunden||[]).find(x=>x.id===kundeId);
+  if(!k) return;
+  const doc=(k.documents||[]).find(d=>d.id===docId);
+  if(!doc) return;
+  if(!confirm('Supprimer "'+doc.name+'" ?')) return;
+  if(doc.storageUrl){
+    try{
+      const path='kundenDocs/'+(_adminUid||_uid)+'/'+kundeId+'/'+docId;
+      await window._stDelete(path);
+    }catch(e){}
+  }
+  k.documents=k.documents.filter(d=>d.id!==docId);
+  await _kundenSave(k);
+  const area=document.getElementById('kundeDocsArea_'+kundeId);
+  if(area) area.innerHTML=_renderKundeDocs(k);
+  showToast('🗑 Document supprimé');
+}
+
+function openKundeDoc(url,name){
+  window.open(url,'_blank');
+}
+
+function _kundenLinkedProjects(k){
+  const ids=k.projektIds||[];
+  const result=[];
+  state.chantiers.forEach(c=>{
+    c.phases.forEach(ph=>{
+      if(ids.includes(ph.id)||ids.includes(c.id)){
+        const tmpl=getPhaseTemplate(ph);
+        const prog=getProgress(ph);
+        result.push({name:c.name+' — '+tmpl.label,icon:tmpl.icon,cid:c.id,pid:ph.id,done:prog.done,total:prog.total,prog:prog.pct});
+      }
+    });
+  });
+  return result;
+}
+
+let _kundeDebounce=null;
+function updateKundeField(id,field,val){
+  const k=(state.kunden||[]).find(x=>x.id===id);
+  if(!k) return;
+  k[field]=val;
+  clearTimeout(_kundeDebounce);
+  _kundeDebounce=setTimeout(async()=>{
+    await _kundenSave(k);
+    renderSidebar();
+    showToast('💾 Client enregistré');
+  },1200);
+}
+
+function openKundeModal(id){
+  const k=id?(state.kunden||[]).find(x=>x.id===id):null;
+  document.getElementById('kundeModalTitle').textContent=k?'Modifier client':'Nouveau client';
+  document.getElementById('kundeModalId').value=k?k.id:'';
+  document.getElementById('kundeModalName').value=k?k.name:'';
+  document.getElementById('kundeModalTyp').value=k?k.typ:'Privat';
+  document.getElementById('kundeModalTel').value=k?k.telefon||'':'';
+  document.getElementById('kundeModalEmail').value=k?k.email||'':'';
+  document.getElementById('kundeModalStatus').value=k?k.status||'Aktiv':'Aktiv';
+  document.getElementById('kundeModal').classList.add('open');
+  setTimeout(()=>document.getElementById('kundeModalName').focus(),100);
+}
+
+async function saveKundeModal(){
+  const name=document.getElementById('kundeModalName').value.trim();
+  if(!name){document.getElementById('kundeModalName').focus();return;}
+  const existId=+document.getElementById('kundeModalId').value||null;
+  let k=existId?(state.kunden||[]).find(x=>x.id===existId):null;
+  if(!k){
+    k={id:Date.now(),name:'',typ:'Privat',telefon:'',email:'',notizen:'',letzterKontakt:'',naechsteAktion:'',naechsteAktionDatum:'',status:'Aktiv',projektIds:[]};
+    if(!state.kunden) state.kunden=[];
+    state.kunden.push(k);
+  }
+  k.name=name;
+  k.typ=document.getElementById('kundeModalTyp').value;
+  k.telefon=document.getElementById('kundeModalTel').value.trim();
+  k.email=document.getElementById('kundeModalEmail').value.trim();
+  k.status=document.getElementById('kundeModalStatus').value;
+  await _kundenSave(k);
+  closeModal('kundeModal');
+  renderSidebar();
+  showToast('✅ Client enregistré');
+  if(state.currentView==='kunden') renderKundenView();
+}
+
+async function deleteKunde(id){
+  if(!confirm('Supprimer ce client ?')) return;
+  state.kunden=(state.kunden||[]).filter(k=>k.id!==id);
+  // remove from all chantiers
+  state.chantiers.forEach(c=>c.phases.forEach(ph=>{
+    if(ph.kundeId===id) delete ph.kundeId;
+  }));
+  await _kundenDelete(id);
+  showToast('🗑 Client supprimé');
+  showKunden();
+}
+
+function assignKundeToPhase(cid,pid,kundeId){
+  const ph=getPhase(cid,pid);
+  if(!ph) return;
+  const prev=ph.kundeId;
+  ph.kundeId=kundeId?+kundeId:null;
+  // update projektIds on old and new kunde
+  if(prev){
+    const old=(state.kunden||[]).find(k=>k.id===prev);
+    if(old){ old.projektIds=(old.projektIds||[]).filter(x=>x!==pid); _kundenSave(old); }
+  }
+  if(kundeId){
+    const nk=(state.kunden||[]).find(k=>k.id===+kundeId);
+    if(nk){ if(!nk.projektIds)nk.projektIds=[]; if(!nk.projektIds.includes(pid))nk.projektIds.push(pid); _kundenSave(nk); }
+  }
+  autoSave();
+  renderChecklist(cid,pid);
+  showToast('👥 Client assigné');
+}
 
 // Modal close handlers
-['addChantierModal','addPhaseModal','addAptModal','bulkRenameAptModal','renameModal','editStepModal','profileModal','stManageModal','stEditModal','stPickerModal','teamModal','workerModal'].forEach(id=>{ document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);}); });
+['addChantierModal','addPhaseModal','addAptModal','bulkRenameAptModal','renameModal','editStepModal','profileModal','stManageModal','stEditModal','stPickerModal','teamModal','workerModal','kundeModal'].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('click',function(e){if(e.target===this)closeModal(id);}); });
 document.getElementById('loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
 // Escape key: close all overlays — safety net if anything gets stuck
 document.addEventListener('keydown',function(e){
   if(e.key!=='Escape') return;
-  ['addChantierModal','addPhaseModal','addAptModal','bulkRenameAptModal','renameModal','editStepModal','profileModal','stManageModal','stEditModal','stPickerModal','teamModal','workerModal'].forEach(closeModal);
+  ['addChantierModal','addPhaseModal','addAptModal','bulkRenameAptModal','renameModal','editStepModal','profileModal','stManageModal','stEditModal','stPickerModal','teamModal','workerModal','kundeModal'].forEach(closeModal);
   closePhotoRapport();
   closeAnnotator();
   closeEmailModal();
@@ -5236,11 +5662,12 @@ document.addEventListener('firebaseReady',()=>{
       if(window._cSave) window._cSave('__session__',{uid:_uid,email:user.email,isWorker:_isWorker,adminUid:_adminUid,allowedChantiers:_allowedChantiers,workerName:_workerName});
       hideLoginScreen(user);
       setSyncStatus('syncing');
-      state={chantiers:[],sousTraitants:[],profile:{logo:null,companyName:''},plannings:[],currentView:'dashboard',currentChantierId:null,currentPhaseId:null,currentPlanningId:null};
+      state={chantiers:[],sousTraitants:[],profile:{logo:null,companyName:''},plannings:[],kunden:[],currentView:'dashboard',currentChantierId:null,currentPhaseId:null,currentPlanningId:null};
       render();
       startFirebaseListener();
       if(!_isWorker) setTimeout(()=>refreshTeamList().catch(()=>{}),1500);
       _fbLoadApiKey();
+      _kundenLoad().then(()=>renderSidebar());
       initAiChat();
       if(isMobile()){const sb=document.querySelector('.sidebar');if(sb){sb.classList.remove('mobile-open');const btn=document.getElementById('sidebarToggle');if(btn){btn.classList.remove('mobile-open');}}}
     } else {
