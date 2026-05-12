@@ -4871,11 +4871,12 @@ function _renderKundeDocs(k){
     const icon=isPdf?'📄':isImg?'🖼':'📎';
     const size=d.size?(d.size>1024*1024?(d.size/1024/1024).toFixed(1)+' Mo':(d.size/1024).toFixed(0)+' Ko'):'';
     const btnStyle='background:none;border:1px solid var(--paper3);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--ink2);transition:all .15s';
-    const actions=d.storageUrl?`
-      <button onclick="openKundeDoc('${escHtml(d.storageUrl)}','${escHtml(d.name)}')" style="${btnStyle}" title="Ouvrir dans un nouvel onglet">👁 Ouvrir</button>
-      <button onclick="downloadKundeDoc('${escHtml(d.storageUrl)}','${escHtml(d.name)}')" style="${btnStyle}" title="Télécharger">⬇ Télécharger</button>
-      <button onclick="printKundeDoc('${escHtml(d.storageUrl)}')" style="${btnStyle}" title="Imprimer">🖨 Imprimer</button>
-    `:'<span style="font-size:11px;color:var(--ink3);font-style:italic">Chargement…</span>';
+    const docRef=d.storageUrl&&d.storageUrl!=='inline'?d.storageUrl:d.dataUrl||null;
+    const actions=docRef?`
+      <button onclick="openKundeDoc('${escHtml(docRef)}','${escHtml(d.name)}')" style="${btnStyle}">👁 Ouvrir</button>
+      <button onclick="downloadKundeDoc('${escHtml(docRef)}','${escHtml(d.name)}')" style="${btnStyle}">⬇ Télécharger</button>
+      <button onclick="printKundeDoc('${escHtml(docRef)}')" style="${btnStyle}">🖨 Imprimer</button>
+    `:'<span style="font-size:11px;color:var(--ink3);font-style:italic">⏳ En cours…</span>';
     return `<div style="display:flex;align-items:center;gap:.5rem;padding:.65rem 0;border-bottom:1px solid var(--paper2);flex-wrap:wrap">
       <span style="font-size:18px">${icon}</span>
       <div style="flex:1;min-width:120px">
@@ -4909,6 +4910,8 @@ function printKundeDoc(url){
   if(w) w.addEventListener('load',()=>{ try{ w.print(); }catch(e){} });
 }
 
+const MAX_DOC_MB=15;
+
 async function uploadKundeDocs(kundeId, input){
   const k=(state.kunden||[]).find(x=>x.id===kundeId);
   if(!k||!input.files.length) return;
@@ -4916,22 +4919,28 @@ async function uploadKundeDocs(kundeId, input){
   const files=Array.from(input.files);
   input.value='';
   for(const f of files){
+    if(f.size>MAX_DOC_MB*1024*1024){ showToast('⚠ '+f.name+' dépasse '+MAX_DOC_MB+' Mo'); continue; }
     const docId='kdoc_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-    const doc={id:docId,name:f.name,size:f.size,type:f.type,addedAt:new Date().toISOString(),storageUrl:null};
+    const doc={id:docId,name:f.name,size:f.size,type:f.type,addedAt:new Date().toISOString(),storageUrl:null,dataUrl:null};
     k.documents.push(doc);
     const area=document.getElementById('kundeDocsArea_'+kundeId);
     if(area) area.innerHTML=_renderKundeDocs(k);
+    showToast('⏳ Chargement de '+f.name+'…');
     const reader=new FileReader();
     reader.onload=async ev=>{
+      doc.dataUrl=ev.target.result;
+      doc.storageUrl='inline';
+      // try Firebase Storage for large files, fall back to RTDB base64
       try{
         const path='kundenDocs/'+(_adminUid||_uid)+'/'+kundeId+'/'+docId;
         await window._stUpload(path,ev.target.result,f.type);
         doc.storageUrl=await window._stUrl(path);
-      }catch(e){ doc.storageUrl=''; }
+        doc.dataUrl=null; // save space in RTDB
+      }catch(e){ /* keep dataUrl as fallback */ }
       await _kundenSave(k);
       const a2=document.getElementById('kundeDocsArea_'+kundeId);
       if(a2) a2.innerHTML=_renderKundeDocs(k);
-      showToast('📎 '+f.name+' ajouté');
+      showToast('✅ '+f.name+' ajouté');
     };
     reader.readAsDataURL(f);
   }
