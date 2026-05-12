@@ -1,10 +1,10 @@
-const CACHE = 'festates-v4';
-const BASE = '/suivi-chantier-f-estates';
+const CACHE = 'festates-v5';
+const BASE = '';
 const ASSETS = [
-  BASE + '/',
-  BASE + '/index.html',
-  BASE + '/manifest.json',
-  BASE + '/logo.png'
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/logo.png'
 ];
 
 self.addEventListener('install', e => {
@@ -35,7 +35,7 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE).then(c => c.put(e.request, clone));
           return res;
         })
-        .catch(() => caches.match(BASE + '/index.html'))
+        .catch(() => caches.match('/index.html'))
     );
     return;
   }
